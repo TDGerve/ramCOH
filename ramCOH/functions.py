@@ -13,8 +13,7 @@ from scipy.interpolate import interp1d
 from importlib import resources
 
 
-##CURVE FUNCTIONS
-
+# curves
 
 def gaussian(x, amplitude, center, width, baselevel=0):
 
@@ -176,25 +175,25 @@ def H2Oraman(rWS, intercept, slope):
 
     intercept & slope are determined empirically through calibration with standards
     """
-
-    H2O = 100 * (intercept + slope * rWS) / (1 + (intercept + slope * rWS))
-
-    return H2O
+    
+    return (100 * slope * rWS) / (1 + slope * rWS)
 
 
 def diads(x, intensities, peak_prominence=40, fit_window=8, curve="GL"):
     # Fit curves to the two highest peaks in the 1250 - 1450cm-1 window
 
+    # set up the cost function
     curveDict = {"GL": GaussLorentz, "G": gaussian, "L": lorentzian}
     residuals = lambda params, x, spectrum: curveDict[curve](x, *params) - spectrum
 
+    # check if the diads are within range of the spectrum
     if (x.min() > 1250) | (x.max() < 1450):
         raise RuntimeError("spectrum not within 1250 - 1450cm-1")
 
     intensities = intensities[(x > 1250) & (x < 1450)]
     x = x[(x > 1250) & (x < 1450)]
 
-    # initial guesses for fitting 2 peaks
+    # find initial guesses for fitting 2 peaks
     amplitudes = intensities[
         signal.find_peaks(intensities, prominence=peak_prominence)[0]
     ]
@@ -202,24 +201,24 @@ def diads(x, intensities, peak_prominence=40, fit_window=8, curve="GL"):
         raise RuntimeError("less than two peaks found")
     if amplitudes.shape[0] > 2:
         warnings.warn("more than two peaks found")
+    
     sort_index = np.argsort(amplitudes)
     amplitudes = amplitudes[sort_index]
 
-    centers = x[signal.find_peaks(intensities, prominence=peak_prominence)[0]][
-        sort_index
-    ]
+    centers = x[signal.find_peaks(intensities, prominence=peak_prominence)[0]][sort_index]
 
+    # full width half maximum in wavenumbers
     widths = (
         signal.peak_widths(
             intensities, signal.find_peaks(intensities, prominence=peak_prominence)[0]
         )[0]
         * abs(np.diff(x).mean())
-    )[
-        sort_index
-    ]  # full width half maximum in wavenumbers
+    )[sort_index]  
 
-    shape = 0.5  # Gaussian - Lorentian mixing paramter
-    baselevel = 0  # should be 0 for baseline corrected spectra
+    # Gaussian - Lorentzian mixing paramter
+    shape = 0.5  
+    # baselevel, should be 0 for baseline corrected spectra
+    baselevel = 0  
 
     init_values1 = np.array([amplitudes[-2], centers[-2], widths[-2], baselevel])
     init_values2 = np.array([amplitudes[-1], centers[-1], widths[-1], baselevel])
@@ -257,6 +256,7 @@ def diads(x, intensities, peak_prominence=40, fit_window=8, curve="GL"):
         fun=residuals, x0=init_values2, bounds=bounds, args=(x2, intensity2)
     ).x
 
+    # tidy data
     labels = ["amplitude", "center", "width", "baselevel"]
     if curve == "GL":
         labels.append("shape")
