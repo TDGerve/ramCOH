@@ -9,7 +9,6 @@ import numpy as np
 import warnings
 from scipy import signal
 from scipy.optimize import least_squares
-from scipy.interpolate import interp1d
 from importlib import resources
 
 
@@ -46,14 +45,13 @@ def composeCurves(x, centers, amplitudes, widths, shapes, baselevel=0):
     baselevels = [baselevel] * peakAmount
     params = [
         {"center": i, "amplitude": j, "width": k, "baselevel": l, "shape": m}
-        for _, (i, j, k, l, m) in enumerate(
+        for i, j, k, l, m in 
             zip(centers, amplitudes, widths, baselevels, shapes)
-        )
     ]
 
     curves = GaussLorentz(x, **params[0])
 
-    for _, peak in enumerate(params[1:]):
+    for peak in params[1:]:
         curves = curves + GaussLorentz(x, **peak)
 
     return curves
@@ -62,20 +60,20 @@ def composeCurves(x, centers, amplitudes, widths, shapes, baselevel=0):
 ##DATA PROCESSING
 
 
-def wavelengthToShift(wavelength, laser=532):
+def wavelengthToShift(wavelength, laser=532.18):
 
     return 1e7 / laser - 1e7 / wavelength
 
 
-def ShiftToWavelength(shift, laser=532):
+def ShiftToWavelength(shift, laser=532.18):
 
     return 1 / (1 / laser - shift / 1e7)
 
 
-def neonEmission(laser=532.27):
-    """from https://physics.nist.gov/PhysRefData/Handbook/Tables/neontable2.htm"""
+def neonEmission(laser=532.18):
+    "from https://physics.nist.gov/PhysRefData/Handbook/Tables/neontable2.htm"
 
-    with resources.open_text("petroPy.static", "neon_emissionLines.csv") as df:
+    with resources.open_text("static", "neon_emissionLines.csv") as df:
         neon = pd.read_csv(df)
 
     # neon= pd.read_csv('D:/Dropbox/python/packages/petroPy/neon_emissionLines.csv')
@@ -118,7 +116,7 @@ def long_correction(x, intensities, T_C=25.0, laser=532.18, normalisation="area"
 
     """
     Long correction of Raman spectra
-    Mostly copied from tlcorrection() in the Rampy package from Le Losq (2012)
+    From Long (1977) and Behrens (2006)
 
     Parameters
     ----------
@@ -136,19 +134,20 @@ def long_correction(x, intensities, T_C=25.0, laser=532.18, normalisation="area"
     intensities = np.array(intensities)[np.argsort(x)]
     x = np.array(x)[np.argsort(x)]
 
-    if x[-1] < x[0]:  # to raise an error if decreasing x values are provided
-        raise ValueError("x values should be increasing.")
+    # nu0 laser is in M-1 (wave is in nm)
+    nu0 = 1.0 / laser * 1e9
+    # K temperature
+    T = T_C + 273.15  
 
-    nu0 = 1.0 / laser * 1e9  # nu0 laser is in M-1 (wave is in nm)
-    T = T_C + 273.15  # K temperature
+    # Raman shift from cm-1 to m-1
+    nu = 100.0 * x 
 
-    # Get the Raman shift in m-1
-    nu = 100.0 * x  # cm-1 -> m-1 Raman shift
-
-    frequency = nu0 ** 3 * nu / ((nu0 - nu) ** 4)  # frequency correction; dimensionless
+    # frequency correction; dimensionless
+    frequency = nu0 ** 3 * nu / ((nu0 - nu) ** 4)  
+    # temperature correction with Boltzman distribution; dimensionless
     boltzman = 1.0 - np.exp(
         -h * c * nu / (k * T)
-    )  # temperature correction with Boltzman distribution; dimensionless
+    )  
     intensityLong = intensities * frequency * boltzman  # correction
 
     if normalisation == "area":
@@ -161,8 +160,6 @@ def long_correction(x, intensities, T_C=25.0, laser=532.18, normalisation="area"
 
     return intensityLong
 
-
-##VARIOUS
 
 
 def H2Oraman(rWS, intercept, slope):
