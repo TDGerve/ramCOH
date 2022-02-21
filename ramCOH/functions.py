@@ -12,8 +12,6 @@ from scipy.optimize import least_squares
 from importlib import resources
 
 
-# curves
-
 def gaussian(x, amplitude, center, width, baselevel=0):
 
     return amplitude * np.exp(-((x - center) ** 2) / (2 * width ** 2)) + baselevel
@@ -31,7 +29,7 @@ def GaussLorentz(x, amplitude, center, width, baselevel, shape):
     )
 
 
-def composeCurves(x, centers, amplitudes, widths, shapes, baselevel=0):
+def composeCurves(x, centers, amplitudes, widths, shapes, baselevels):
     """add mixed Gauss-Lorent curves together
 
     Parameters
@@ -42,7 +40,10 @@ def composeCurves(x, centers, amplitudes, widths, shapes, baselevel=0):
     """
 
     peakAmount = len(centers)
-    baselevels = [baselevel] * peakAmount
+
+    if isinstance(baselevels, (int, float)):
+        baselevels = [baselevels] * peakAmount
+        
     params = [
         {"center": i, "amplitude": j, "width": k, "baselevel": l, "shape": m}
         for i, j, k, l, m in 
@@ -162,7 +163,7 @@ def long_correction(x, intensities, T_C=25.0, laser=532.18, normalisation="area"
 
 
 
-def H2Oraman(rWS, intercept, slope):
+def H2Oraman(rWS, slope):
     """Calculate water contents using the equation (3) from Le Losq et al. (2012)
 
     equation:

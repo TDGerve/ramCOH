@@ -240,7 +240,7 @@ class H2O(RamanProcessing):
 		self.spectrumSelect = 'olC'
 		self.olC = True
 
-	def olivineExtract(self, birs, cutoff= 1400, peak_prominence= 20, smooth = 1E-6, **kwargs):
+	def olivineExtract(self, cutoff= 1400, peak_prominence= 20, smooth = 1E-6, **kwargs):
 
 		defaultBir = np.array([
 			[100,270],
@@ -259,8 +259,8 @@ class H2O(RamanProcessing):
 
 		#regions without olivine peaks
 		if isinstance(birs, list):
-			olBirs = np.array(birs).reshape((len(birs) // 2,2))
-		xbir, ybir = sf._extractBIR(self.x, spectrum, olBirs)
+			birs = np.array(birs).reshape((len(birs) // 2,2))
+		xbir, ybir = sf._extractBIR(self.x, spectrum, birs)
 
 		#fit spline to olivine free regions of the spectrum
 		spline = csaps(xbir, ybir, smooth = smooth)
@@ -301,7 +301,7 @@ class H2O(RamanProcessing):
 			return sf.composeCurves(x, *values)
 
 		#Fit peaks
-		residuals = lambda params, x, peakAmount, spectrum: curveComposeWrapper(x, params, peakAmount) - olivine
+		residuals = lambda params, x, peakAmount, spectrum: curveComposeWrapper(x, params, peakAmount, baselevel=0) - spectrum
 
 		LSfit = least_squares(fun = residuals, x0 = init_values, bounds = bounds, args = (x, peakAmount, olivine))
 
