@@ -9,11 +9,7 @@ import numpy as np
 import warnings
 from scipy import signal
 from scipy.optimize import least_squares
-from scipy.interpolate import interp1d
 from importlib import resources
-
-
-##CURVE FUNCTIONS
 
 
 def gaussian(x, amplitude, center, width, baselevel=0):
@@ -33,7 +29,7 @@ def GaussLorentz(x, amplitude, center, width, baselevel, shape):
     )
 
 
-def composeCurves(x, centers, amplitudes, widths, shapes, baselevel=0):
+def composeCurves(x, centers, amplitudes, widths, shapes, baselevels):
     """add mixed Gauss-Lorent curves together
 
     Parameters
@@ -44,17 +40,19 @@ def composeCurves(x, centers, amplitudes, widths, shapes, baselevel=0):
     """
 
     peakAmount = len(centers)
-    baselevels = [baselevel] * peakAmount
+
+    if isinstance(baselevels, (int, float)):
+        baselevels = [baselevels] * peakAmount
+        
     params = [
         {"center": i, "amplitude": j, "width": k, "baselevel": l, "shape": m}
-        for _, (i, j, k, l, m) in enumerate(
+        for i, j, k, l, m in 
             zip(centers, amplitudes, widths, baselevels, shapes)
-        )
     ]
 
     curves = GaussLorentz(x, **params[0])
 
-    for _, peak in enumerate(params[1:]):
+    for peak in params[1:]:
         curves = curves + GaussLorentz(x, **peak)
 
     return curves
@@ -63,20 +61,20 @@ def composeCurves(x, centers, amplitudes, widths, shapes, baselevel=0):
 ##DATA PROCESSING
 
 
-def wavelengthToShift(wavelength, laser=532):
+def wavelengthToShift(wavelength, laser=532.18):
 
     return 1e7 / laser - 1e7 / wavelength
 
 
-def ShiftToWavelength(shift, laser=532):
+def ShiftToWavelength(shift, laser=532.18):
 
     return 1 / (1 / laser - shift / 1e7)
 
 
-def neonEmission(laser=532.27):
-    """from https://physics.nist.gov/PhysRefData/Handbook/Tables/neontable2.htm"""
+def neonEmission(laser=532.18):
+    "from https://physics.nist.gov/PhysRefData/Handbook/Tables/neontable2.htm"
 
-    with resources.open_text("petroPy.static", "neon_emissionLines.csv") as df:
+    with resources.open_text("static", "neon_emissionLines.csv") as df:
         neon = pd.read_csv(df)
 
     # neon= pd.read_csv('D:/Dropbox/python/packages/petroPy/neon_emissionLines.csv')
@@ -119,7 +117,7 @@ def long_correction(x, intensities, T_C=25.0, laser=532.18, normalisation="area"
 
     """
     Long correction of Raman spectra
-    Mostly copied from tlcorrection() in the Rampy package from Le Losq (2012)
+    From Long (1977) and Behrens (2006)
 
     Parameters
     ----------
@@ -137,19 +135,20 @@ def long_correction(x, intensities, T_C=25.0, laser=532.18, normalisation="area"
     intensities = np.array(intensities)[np.argsort(x)]
     x = np.array(x)[np.argsort(x)]
 
-    if x[-1] < x[0]:  # to raise an error if decreasing x values are provided
-        raise ValueError("x values should be increasing.")
+    # nu0 laser is in M-1 (wave is in nm)
+    nu0 = 1.0 / laser * 1e9
+    # K temperature
+    T = T_C + 273.15  
 
-    nu0 = 1.0 / laser * 1e9  # nu0 laser is in M-1 (wave is in nm)
-    T = T_C + 273.15  # K temperature
+    # Raman shift from cm-1 to m-1
+    nu = 100.0 * x 
 
-    # Get the Raman shift in m-1
-    nu = 100.0 * x  # cm-1 -> m-1 Raman shift
-
-    frequency = nu0 ** 3 * nu / ((nu0 - nu) ** 4)  # frequency correction; dimensionless
+    # frequency correction; dimensionless
+    frequency = nu0 ** 3 * nu / ((nu0 - nu) ** 4)  
+    # temperature correction with Boltzman distribution; dimensionless
     boltzman = 1.0 - np.exp(
         -h * c * nu / (k * T)
-    )  # temperature correction with Boltzman distribution; dimensionless
+    )  
     intensityLong = intensities * frequency * boltzman  # correction
 
     if normalisation == "area":
@@ -163,10 +162,8 @@ def long_correction(x, intensities, T_C=25.0, laser=532.18, normalisation="area"
     return intensityLong
 
 
-##VARIOUS
 
-
-def H2Oraman(rWS, intercept, slope):
+def H2Oraman(rWS, slope):
     """Calculate water contents using the equation (3) from Le Losq et al. (2012)
 
     equation:
@@ -176,25 +173,25 @@ def H2Oraman(rWS, intercept, slope):
 
     intercept & slope are determined empirically through calibration with standards
     """
-
-    H2O = 100 * (intercept + slope * rWS) / (1 + (intercept + slope * rWS))
-
-    return H2O
+    
+    return (100 * slope * rWS) / (1 + slope * rWS)
 
 
 def diads(x, intensities, peak_prominence=40, fit_window=8, curve="GL"):
     # Fit curves to the two highest peaks in the 1250 - 1450cm-1 window
 
+    # set up the cost function
     curveDict = {"GL": GaussLorentz, "G": gaussian, "L": lorentzian}
     residuals = lambda params, x, spectrum: curveDict[curve](x, *params) - spectrum
 
+    # check if the diads are within range of the spectrum
     if (x.min() > 1250) | (x.max() < 1450):
         raise RuntimeError("spectrum not within 1250 - 1450cm-1")
 
     intensities = intensities[(x > 1250) & (x < 1450)]
     x = x[(x > 1250) & (x < 1450)]
 
-    # initial guesses for fitting 2 peaks
+    # find initial guesses for fitting 2 peaks
     amplitudes = intensities[
         signal.find_peaks(intensities, prominence=peak_prominence)[0]
     ]
@@ -202,24 +199,24 @@ def diads(x, intensities, peak_prominence=40, fit_window=8, curve="GL"):
         raise RuntimeError("less than two peaks found")
     if amplitudes.shape[0] > 2:
         warnings.warn("more than two peaks found")
+    
     sort_index = np.argsort(amplitudes)
     amplitudes = amplitudes[sort_index]
 
-    centers = x[signal.find_peaks(intensities, prominence=peak_prominence)[0]][
-        sort_index
-    ]
+    centers = x[signal.find_peaks(intensities, prominence=peak_prominence)[0]][sort_index]
 
+    # full width half maximum in wavenumbers
     widths = (
         signal.peak_widths(
             intensities, signal.find_peaks(intensities, prominence=peak_prominence)[0]
         )[0]
         * abs(np.diff(x).mean())
-    )[
-        sort_index
-    ]  # full width half maximum in wavenumbers
+    )[sort_index]  
 
-    shape = 0.5  # Gaussian - Lorentian mixing paramter
-    baselevel = 0  # should be 0 for baseline corrected spectra
+    # Gaussian - Lorentzian mixing paramter
+    shape = 0.5  
+    # baselevel, should be 0 for baseline corrected spectra
+    baselevel = 0  
 
     init_values1 = np.array([amplitudes[-2], centers[-2], widths[-2], baselevel])
     init_values2 = np.array([amplitudes[-1], centers[-1], widths[-1], baselevel])
@@ -257,6 +254,7 @@ def diads(x, intensities, peak_prominence=40, fit_window=8, curve="GL"):
         fun=residuals, x0=init_values2, bounds=bounds, args=(x2, intensity2)
     ).x
 
+    # tidy data
     labels = ["amplitude", "center", "width", "baselevel"]
     if curve == "GL":
         labels.append("shape")
