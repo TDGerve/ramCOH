@@ -333,8 +333,6 @@ class olivine(H2O):
 		widths = signal.peak_widths(spectrum, peaks[0])[0] * abs(np.diff(x).mean())
 
 		peakAmount = len(centers)
-		    
-		baselevels = [0] * peakAmount
 		shapes = [0.5] * peakAmount
 
 		init_values = np.concatenate([centers, amplitudes, widths, shapes])
@@ -356,7 +354,7 @@ class olivine(H2O):
 			return sf.sum_GaussLorentz(x, *values)
 
 		#Least cost function
-		residuals = lambda params, x, peakAmount, spectrum: sum_GaussLorentz_reshape(x, params, peakAmount) - spectrum
+		residuals = lambda params, x, peakAmount, spectrum: sum_GaussLorentz_reshape(x, params, peakAmount, baselevel=0) - spectrum
 
 		LSfit = least_squares(fun = residuals, x0 = init_values, bounds = bounds, args = (x, peakAmount, spectrum))
 
