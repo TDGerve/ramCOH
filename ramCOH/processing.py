@@ -89,10 +89,8 @@ class RamanProcessing:
 
 		residuals = lambda params, x, spectrum: curveDict[curve](x, *params) - spectrum
 
-		amplitudes = spectrum[signal.find_peaks(spectrum, prominence = peak_prominence)[0]]
-		centers = self.x[signal.find_peaks(spectrum, prominence = peak_prominence)[0]]
-		# full width half maximum in Raman shifts 
-		widths = signal.peak_widths(spectrum, signal.find_peaks(spectrum, prominence = peak_prominence)[0])[0]*abs(np.diff(self.x).mean())
+		amplitudes, centers, widths = sf._find_peak_parameters(x=self.x, y=spectrum, prominence=peak_prominence)
+
 		# Gaussian - Lorentian mixing paramter
 		shape = 0.5 
 		# baselevel should be 0 for baseline corrected spectra
@@ -215,7 +213,7 @@ class H2O(RamanProcessing):
 			olBirs = np.array(ol).reshape((len(ol) // 2,2))
 		xbir, ybir = sf._extractBIR(self.x, spectrum, olBirs)
 
-		# Boolean array for regions without olivine peaks
+		# Boolean array for glass only regions; no olivine peaks
 		for i, region in enumerate(olBirs):
 			if i == 0:
 				glassIndex = (self.x > region[0]) & (self.x < region[1])
@@ -272,10 +270,7 @@ class H2O(RamanProcessing):
 		x = self.x[self.x < cutoff]
 
 		#Get initial guesses
-		peaks = signal.find_peaks(olivine, prominence = peak_prominence / 100 * olivine.max())
-
-		amplitudes, centers = olivine[peaks[0]], x[peaks[0]]
-		widths = signal.peak_widths(olivine, peaks[0])[0] * abs(np.diff(x).mean())
+		amplitudes, centers, widths = sf._find_peak_parameters(self.x, olivine, prominence=peak_prominence / 100 * olivine.max())
 
 		peakAmount = len(centers)
 		    
@@ -293,15 +288,15 @@ class H2O(RamanProcessing):
 
 		bounds = (leftBound, rightBound)
 
-		def curveComposeWrapper(x, params, peakAmount):
-			"Reshape parameters to use composeCurves in least-squares regression"
+		def sum_GaussLorentz_reshape(x, params, peakAmount):
+			"Reshape parameters to use sum_GaussLorentz in least-squares regression"
 			
 			values = params.reshape((4, peakAmount))
 			
-			return sf.composeCurves(x, *values)
+			return sf.sum_GaussLorentz(x, *values)
 
 		#Fit peaks
-		residuals = lambda params, x, peakAmount, spectrum: curveComposeWrapper(x, params, peakAmount, baselevel=0) - spectrum
+		residuals = lambda params, x, peakAmount, spectrum: sum_GaussLorentz_reshape(x, params, peakAmount, baselevel=0) - spectrum
 
 		LSfit = least_squares(fun = residuals, x0 = init_values, bounds = bounds, args = (x, peakAmount, olivine))
 
@@ -353,15 +348,15 @@ class olivine(H2O):
 
 		bounds = (leftBound, rightBound)
 
-		def curveComposeWrapper(x, params, peakAmount):
-			"""Reshape parameters to use composeCurves in least-squares regression"""
+		def sum_GaussLorentz_reshape(x, params, peakAmount):
+			"Reshape parameters to use sum_GaussLorentz in least-squares regression"
 			
 			values = params.reshape((4, peakAmount))
 			
-			return sf.composeCurves(x, *values)
+			return sf.sum_GaussLorentz(x, *values)
 
 		#Least cost function
-		residuals = lambda params, x, peakAmount, spectrum: curveComposeWrapper(x, params, peakAmount) - spectrum
+		residuals = lambda params, x, peakAmount, spectrum: sum_GaussLorentz_reshape(x, params, peakAmount) - spectrum
 
 		LSfit = least_squares(fun = residuals, x0 = init_values, bounds = bounds, args = (x, peakAmount, spectrum))
 

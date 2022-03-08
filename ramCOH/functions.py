@@ -29,8 +29,8 @@ def GaussLorentz(x, amplitude, center, width, baselevel, shape):
     )
 
 
-def composeCurves(x, centers, amplitudes, widths, shapes, baselevels):
-    """add mixed Gauss-Lorent curves together
+def sum_GaussLorenz(x, centers, amplitudes, widths, shapes, baselevels):
+    """add mixed Gauss-Lorentzian curves together
 
     Parameters
     ----------
@@ -184,60 +184,32 @@ def diads(x, intensities, peak_prominence=40, fit_window=8, curve="GL"):
     curveDict = {"GL": GaussLorentz, "G": gaussian, "L": lorentzian}
     residuals = lambda params, x, spectrum: curveDict[curve](x, *params) - spectrum
 
-    # check if the diads are within range of the spectrum
+    # check if the diad is within range of the spectrum
     if (x.min() > 1250) | (x.max() < 1450):
         raise RuntimeError("spectrum not within 1250 - 1450cm-1")
 
     intensities = intensities[(x > 1250) & (x < 1450)]
     x = x[(x > 1250) & (x < 1450)]
 
-    # find initial guesses for fitting 2 peaks
-    amplitudes = intensities[
-        signal.find_peaks(intensities, prominence=peak_prominence)[0]
-    ]
+    # find initial guesses for peak fitting
+    amplitudes, centers, widths = _find_peak_parameters(x=x, y=intensities, prominence=peak_prominence)
+
     if amplitudes.shape[0] < 2:
         raise RuntimeError("less than two peaks found")
     if amplitudes.shape[0] > 2:
         warnings.warn("more than two peaks found")
     
+    # Sort peaks low to high amplitude and select the two highest
     sort_index = np.argsort(amplitudes)
-    amplitudes = amplitudes[sort_index]
-
-    centers = x[signal.find_peaks(intensities, prominence=peak_prominence)[0]][sort_index]
-
-    # full width half maximum in wavenumbers
-    widths = (
-        signal.peak_widths(
-            intensities, signal.find_peaks(intensities, prominence=peak_prominence)[0]
-        )[0]
-        * abs(np.diff(x).mean())
-    )[sort_index]  
-
+    amplitudes = amplitudes[sort_index][-2:]
+    centers = centers[sort_index][-2:]
+    widths = widths[sort_index][-2:]
     # Gaussian - Lorentzian mixing paramter
     shape = 0.5  
     # baselevel, should be 0 for baseline corrected spectra
-    baselevel = 0  
+    baselevel = 0
 
-    init_values1 = np.array([amplitudes[-2], centers[-2], widths[-2], baselevel])
-    init_values2 = np.array([amplitudes[-1], centers[-1], widths[-1], baselevel])
-
-    if curve == "GL":
-        init_values1 = np.append(init_values1, shape)
-        init_values2 = np.append(init_values2, shape)
-
-    # trim fit areas
-    trim1 = (x > (init_values1[1] - init_values1[2] * fit_window)) & (
-        x < (init_values1[1] + init_values1[2] * fit_window)
-    )
-    trim2 = (x > (init_values2[1] - init_values2[2] * fit_window)) & (
-        x < (init_values2[1] + init_values2[2] * fit_window)
-    )
-    x1 = x[trim1]
-    x2 = x[trim2]
-    intensity1 = intensities[trim1]
-    intensity2 = intensities[trim2]
-
-    # upper and lower bounds for fit parameters
+    # Set bounds for fitting algorithm
     if curve == "GL":
         bounds = (
             [-np.inf, -np.inf, -np.inf, -np.inf, 0],
@@ -246,15 +218,27 @@ def diads(x, intensities, peak_prominence=40, fit_window=8, curve="GL"):
     else:
         bounds = (-np.inf, np.inf)
 
-    # least sqaure regressions of the residuals
-    fit_params1 = least_squares(
-        fun=residuals, x0=init_values1, bounds=bounds, args=(x1, intensity1)
-    ).x
-    fit_params2 = least_squares(
-        fun=residuals, x0=init_values2, bounds=bounds, args=(x2, intensity2)
-    ).x
+    # Initialise output variables
+    fit_params = []
+    fit_x = []
+    # Fit curves to the two peaks
+    for amplitude, center, width in zip(amplitudes, centers, widths):
+        # Set initial guesses
+        init_values = np.array(amplitude, center, width, baselevel)
+        if curve == "GL":
+            init_values = np.append(init_values, shape)
+        
+        x_fit, y_fit = _trim_peakFit_areas(x, intensities, center, width, fit_window=fit_window)
 
-    # tidy data
+        params = least_squares(fun=residuals, x0=init_values, bounds=bounds, args=(x_fit, y_fit)).x
+        fit_params.append(params)
+        fit_x.append(x_fit)
+    
+    # Unpack output data
+    fit_params1, fit_params2 = fit_params
+    x1, x2 = fit_x
+
+    # Tidy data
     labels = ["amplitude", "center", "width", "baselevel"]
     if curve == "GL":
         labels.append("shape")
@@ -294,3 +278,27 @@ def _extractBIR(x, y, birs):
             spectrumBir = np.row_stack((spectrumBir, birRegion))
 
     return spectrumBir[:, 0], spectrumBir[:, 1]
+
+def _find_peak_parameters(x, y, prominence, **kwargs):
+
+    peaks = signal.find_peaks(y, prominence = prominence, **kwargs)
+
+    amplitudes, centers = y[peaks[0]], x[peaks[0]]
+    # full width half maximum in x
+    widths = signal.peak_widths(y, peaks[0])[0] * abs(np.diff(x).mean())
+
+    return amplitudes, centers, widths
+
+
+def _trim_peakFit_areas(x, y, centers, half_widths, fit_window):
+
+    trimmed_areas = []
+
+    for center, width in zip(centers, half_widths):
+        trim = (x > (center - width * fit_window)) & (x < (center + width * fit_window))
+        trimmed_areas.append([x[trim], y[trim]])
+
+    if len(trimmed_areas) == 1:
+        trimmed_areas = trimmed_areas[0]    
+
+    return trimmed_areas
