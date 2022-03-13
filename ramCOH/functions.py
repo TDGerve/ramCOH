@@ -20,11 +20,15 @@ def lorentzian(x, amplitude, center, width, baselevel=0):
 
 def GaussLorentz(x, amplitude, center, width, baselevel, shape):
 
-    return gaussian(x, amplitude * (1 - shape), center, width, baselevel) + lorentzian(
-        x, amplitude * shape, center, width, baselevel
+    return (
+        gaussian(x, amplitude * (1 - shape), center, width, 0)
+        + lorentzian(x, amplitude * shape, center, width, 0)
+        + baselevel
     )
 
 
+# Do not add baselevels to each curve, but only to the composed curve at the end
+# Adjust all other functions as well, deconvolve etc
 def sum_GaussLorenz(x, centers, amplitudes, widths, shapes, baselevels):
     """add mixed Gauss-Lorentzian curves together
 
@@ -339,7 +343,6 @@ def _merge_overlapping_ranges(ranges):
             if (k + 2) == len(ranges):
                 merged_ranges.append(area2)
 
-
     return merged_ranges
 
 
@@ -400,7 +403,15 @@ def _trim_peakFit_ranges(x, y, centers, half_widths, fit_window=4, merge_overlap
     return _trimxy_ranges(x, y, ranges)
 
 
-def deconvolve_curve(x, y, prominence=2., noise_threshold=1.5, baseline0=False, max_iterations=15, extra_loops : int=0):
+def deconvolve_curve(
+    x,
+    y,
+    prominence=2.0,
+    noise_threshold=1.5,
+    baseline0=False,
+    max_iterations=15,
+    extra_loops: int = 0,
+):
     """
     Docstrings
     """
@@ -412,11 +423,11 @@ def deconvolve_curve(x, y, prominence=2., noise_threshold=1.5, baseline0=False, 
     min_width = 6 * resolution
     xlength = x.max() - x.min()
     # Left and right limits for: center, amplitude, width, shape and baselevel
-    leftBoundSimple = [x.min(), noise, min_width, 0., - 5]
-    rightBoundSimple = [x.max(), y.max() * 1.5, xlength, 1., y.max()]
+    leftBoundSimple = [x.min(), noise, min_width, 0.0, -5]
+    rightBoundSimple = [x.max(), y.max() * 1.5, xlength, 1.0, y.max()]
 
     # Initial guesses for peak parameters
-    amplitudes, centers, widths = _find_peak_parameters(x, spline, prominence)
+    amplitudes, centers, widths = _find_peak_parameters(x, spline, prominence / 2)
     # Remove initial guesses that are too narrow or too low amplitude
     keep = np.where((widths > min_width) & (amplitudes > noise))
     amplitudes = amplitudes[keep]
@@ -435,11 +446,13 @@ def deconvolve_curve(x, y, prominence=2., noise_threshold=1.5, baseline0=False, 
         leftBoundSimple = leftBoundSimple[:-1]
         rightBoundSimple = rightBoundSimple[:-1]
         initvalues = initvalues[:-peakAmount]
-        parameters = 4    
-        
-    def sumGaussians_reshaped(x, params, peakAmount, baseline_fixed=baseline0, baseline=0.):
+        parameters = 4
+
+    def sumGaussians_reshaped(
+        x, params, peakAmount, baseline_fixed=baseline0, baseline=0.0
+    ):
         "Reshape parameters to use sum_GaussLorenz in least-squares regression"
-        
+
         if baseline_fixed:
             baselevels = np.array([baseline] * peakAmount)
             params = np.concatenate((params, baselevels))
@@ -452,8 +465,11 @@ def deconvolve_curve(x, y, prominence=2., noise_threshold=1.5, baseline0=False, 
     fit_noise_old = (y - sumGaussians_reshaped(x, initvalues, peakAmount)).std()
 
     # Cost function to minimise
-    residuals = lambda params, x, y, peakAmount: sumGaussians_reshaped(x, params, peakAmount) - y
-    
+    residuals = (
+        lambda params, x, y, peakAmount: sumGaussians_reshaped(x, params, peakAmount)
+        - y
+    )
+
     # Flag for stopping the while loop
     stop = 0
     iterations = 0
@@ -469,12 +485,12 @@ def deconvolve_curve(x, y, prominence=2., noise_threshold=1.5, baseline0=False, 
             x0=initvalues,
             bounds=bounds,
             args=(x, y, peakAmount),
-            loss="soft_l1"
+            loss="soft_l1",
         )
         # Parameters for sum_GaussLorentz
         fitParams = LSfit.x.reshape((parameters, peakAmount))
         if baseline0:
-            fitParams = np.vstack((fitParams, np.array([0.] * peakAmount)))
+            fitParams = np.vstack((fitParams, np.array([0.0] * peakAmount)))
 
         # Parameters for individual peaks
         paramDict = [
@@ -484,13 +500,13 @@ def deconvolve_curve(x, y, prominence=2., noise_threshold=1.5, baseline0=False, 
 
         # R squared adjusted for noise
         data_mean = y.mean()
-        residue =  y - sum_GaussLorenz(x, *fitParams)
-        residual_sum = sum((residue / noise)**2)
-        sum_squares = sum((y - data_mean)**2)
-        R2_noise = 1 - (residual_sum/sum_squares)  
+        residue = y - sum_GaussLorenz(x, *fitParams)
+        residual_sum = sum((residue / noise) ** 2)
+        sum_squares = sum((y - data_mean) ** 2)
+        R2_noise = 1 - (residual_sum / sum_squares)
 
         # Residual noise on the fit, as standard deviation on the residuals
-        fit_noise = (y - sum_GaussLorenz(x, *fitParams)).std()    
+        fit_noise = (y - sum_GaussLorenz(x, *fitParams)).std()
 
         iterations += 1
         if iterations >= max_iterations:
@@ -498,7 +514,8 @@ def deconvolve_curve(x, y, prominence=2., noise_threshold=1.5, baseline0=False, 
             break
         # Stop if noise has increased from previous iteration
         if fit_noise_old < fit_noise:
-            RuntimeError("Noise increased from last iteration, calculation stopped")
+            warnings.warn("Noise increased from last iteration, calculation stopped")
+            break
 
         if fit_noise < (noise * noise_threshold):
             # Stop after some extra loops
@@ -506,7 +523,7 @@ def deconvolve_curve(x, y, prominence=2., noise_threshold=1.5, baseline0=False, 
                 break
             stop += 1
 
-        fit_noise_old = fit_noise.copy()   
+        fit_noise_old = fit_noise.copy()
 
         # residue_abs = abs(residue)
         # Add new peak where residuals are higest

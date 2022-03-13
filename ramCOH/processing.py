@@ -406,6 +406,7 @@ class olivine(H2O):
         baseline0=False,
         max_iterations=15,
         cutoff=1400,
+        extra_loops=0,
         **kwargs
     ):
 
@@ -429,6 +430,7 @@ class olivine(H2O):
                 noise_threshold=noise_threshold,
                 prominence=peak_prominence,
                 baseline0=baseline0,
+                extra_loops=extra_loops,
                 max_iterations=max_iterations,
             )
             fitted_parameters.append(parameters)
