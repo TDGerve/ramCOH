@@ -280,7 +280,7 @@ def _extractBIR(x, y, birs):
 
 def _find_peak_parameters(x, y, prominence, **kwargs):
 
-    prominence_absolute = (prominence / 100) * max(y)
+    prominence_absolute = (prominence / 100) * np.max(y)
 
     peaks = signal.find_peaks(y, prominence=prominence_absolute, **kwargs)
 
@@ -400,44 +400,63 @@ def _trim_peakFit_ranges(x, y, centers, half_widths, fit_window=4, merge_overlap
     return _trimxy_ranges(x, y, ranges)
 
 
-def deconvolve_curve(x, y, prominence=2., noise_threshold=1.5, extra_loops : int=0):
+def deconvolve_curve(x, y, prominence=2., noise_threshold=1.5, baseline0=False, max_iterations=15, extra_loops : int=0):
     """
     Docstrings
     """
-
     # Calculate absolute noise on the signal
     noise, spline = _calculate_noise(x, y)
-
-
-
-    # Initial guesses for peak parameters
-    amplitudes, centers, widths = _find_peak_parameters(x, spline, prominence)
-    peakAmount = len(amplitudes)
-    shapes = np.array([1.0] * peakAmount)
-    baselevels = np.array([0.0] * peakAmount)
-
-    initvalues = np.concatenate((centers, amplitudes, widths, shapes, baselevels))
 
     # Boundary conditions
     resolution = np.diff(x).mean()
     min_width = 6 * resolution
     xlength = x.max() - x.min()
-
     # Left and right limits for: center, amplitude, width, shape and baselevel
-    leftBoundSimple = [x.min(), noise, min_width, 0., -1]
-    rightBoundSimple = [x.max(), y.max(), xlength, 1., y.max()]
+    leftBoundSimple = [x.min(), noise, min_width, 0., - 5]
+    rightBoundSimple = [x.max(), y.max() * 1.5, xlength, 1., y.max()]
 
-    def sumGaussians_reshaped(x, params, peakAmount):
+    # Initial guesses for peak parameters
+    amplitudes, centers, widths = _find_peak_parameters(x, spline, prominence)
+    # Remove initial guesses that are too narrow or too low amplitude
+    keep = np.where((widths > min_width) & (amplitudes > noise))
+    amplitudes = amplitudes[keep]
+    centers = centers[keep]
+    widths = widths[keep]
+
+    peakAmount = len(amplitudes)
+    shapes = np.array([1.0] * peakAmount)
+    baselevels = np.array([0.0] * peakAmount)
+
+    initvalues = np.concatenate((centers, amplitudes, widths, shapes, baselevels))
+    # Number of parameters, 5 for fitted baselevel, 4 for 0 baselevel
+    parameters = 5
+
+    if baseline0:
+        leftBoundSimple = leftBoundSimple[:-1]
+        rightBoundSimple = rightBoundSimple[:-1]
+        initvalues = initvalues[:-peakAmount]
+        parameters = 4    
+        
+    def sumGaussians_reshaped(x, params, peakAmount, baseline_fixed=baseline0, baseline=0.):
         "Reshape parameters to use sum_GaussLorenz in least-squares regression"
+        
+        if baseline_fixed:
+            baselevels = np.array([baseline] * peakAmount)
+            params = np.concatenate((params, baselevels))
 
         values = params.reshape((5, peakAmount))
 
         return sum_GaussLorenz(x, *values)
 
+    # Noise on ititial fit, is used in the main loop to check if the fit has improved each iteration.
+    fit_noise_old = (y - sumGaussians_reshaped(x, initvalues, peakAmount)).std()
+
     # Cost function to minimise
     residuals = lambda params, x, y, peakAmount: sumGaussians_reshaped(x, params, peakAmount) - y
+    
     # Flag for stopping the while loop
     stop = 0
+    iterations = 0
     while True:
 
         # Set up bounds
@@ -453,7 +472,10 @@ def deconvolve_curve(x, y, prominence=2., noise_threshold=1.5, extra_loops : int
             loss="soft_l1"
         )
         # Parameters for sum_GaussLorentz
-        fitParams = LSfit.x.reshape((5, peakAmount))
+        fitParams = LSfit.x.reshape((parameters, peakAmount))
+        if baseline0:
+            fitParams = np.vstack((fitParams, np.array([0.] * peakAmount)))
+
         # Parameters for individual peaks
         paramDict = [
             {"center": i, "amplitude": j, "width": k, "shape": l, "baselevel": m}
@@ -468,7 +490,15 @@ def deconvolve_curve(x, y, prominence=2., noise_threshold=1.5, extra_loops : int
         R2_noise = 1 - (residual_sum/sum_squares)  
 
         # Residual noise on the fit, as standard deviation on the residuals
-        fit_noise = (y - sum_GaussLorenz(x, *fitParams)).std()      
+        fit_noise = (y - sum_GaussLorenz(x, *fitParams)).std()    
+
+        iterations += 1
+        if iterations >= max_iterations:
+            warnings.warn(f"max iterations reached: {max_iterations}")
+            break
+        # Stop if noise has increased from previous iteration
+        if fit_noise_old < fit_noise:
+            RuntimeError("Noise increased from last iteration, calculation stopped")
 
         if fit_noise < (noise * noise_threshold):
             # Stop after some extra loops
@@ -476,16 +506,21 @@ def deconvolve_curve(x, y, prominence=2., noise_threshold=1.5, extra_loops : int
                 break
             stop += 1
 
-        residue_abs = abs(residue)
+        fit_noise_old = fit_noise.copy()   
+
+        # residue_abs = abs(residue)
         # Add new peak where residuals are higest
         peakAmount += 1
-        amplitudes = np.append(amplitudes, residue_abs.max())
-        centers = np.append(centers, x[np.where(residue_abs == residue_abs.max())])
+        amplitudes = np.append(amplitudes, y[np.where(residue == residue.max())])
+        centers = np.append(centers, x[np.where(residue == residue.max())])
         widths = np.append(widths, widths.mean())
         shapes = np.append(shapes, 1)
         baselevels = np.append(baselevels, 0)
 
         initvalues = np.concatenate((centers, amplitudes, widths, shapes, baselevels))
+
+        if baseline0:
+            initvalues = initvalues[:-peakAmount]
 
     return fitParams, R2_noise, fit_noise
 
@@ -493,7 +528,7 @@ def deconvolve_curve(x, y, prominence=2., noise_threshold=1.5, extra_loops : int
 def _calculate_noise(x, y, smooth_factor=1):
 
     max_difference = y.max() - y.min()
-    # Emperically found this is a gives ok smoothing factors
+    # Emperically found this is gives ok smoothing factors
     smooth = 2e-4 * max_difference * smooth_factor
 
     spline = cs.csaps(x, y, x, smooth=smooth)

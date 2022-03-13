@@ -1,4 +1,4 @@
-from . import functions as sf
+from . import functions as f
 import numpy as np
 from warnings import warn
 from scipy import signal
@@ -28,7 +28,7 @@ class RamanProcessing:
         y = kwargs.get("y", self.spectrumSelect)
         spectrum = self.intensities[y]
 
-        self.intensities["smooth"] = sf.smooth(spectrum, smoothType, kernelWidth)
+        self.intensities["smooth"] = f.smooth(spectrum, smoothType, kernelWidth)
         # match length of x with length of smoothed intensities
         self.x = self.x[(kernelWidth - 1) // 2 : -(kernelWidth - 1) // 2]
         # do the same for any other pre-existing spectra
@@ -54,7 +54,7 @@ class RamanProcessing:
         if self.norm:
             warn("run normalisation again to normalise baseline corrected spectrum")
 
-        xbir, ybir = sf._extractBIR(self.x, spectrum, birs)
+        xbir, ybir = f._extractBIR(self.x, spectrum, birs)
 
         spline = csaps(xbir, ybir, smooth=smooth)
         self.baseline = spline(self.x)
@@ -81,11 +81,11 @@ class RamanProcessing:
         spectrum = self.intensities[y]
         self.peaks = {}
         self.curve = curve
-        curveDict = {"GL": sf.GaussLorentz, "G": sf.gaussian, "L": sf.lorentzian}
+        curveDict = {"GL": f.GaussLorentz, "G": f.gaussian, "L": f.lorentzian}
 
         residuals = lambda params, x, spectrum: curveDict[curve](x, *params) - spectrum
 
-        amplitudes, centers, widths = sf._find_peak_parameters(
+        amplitudes, centers, widths = f._find_peak_parameters(
             x=self.x, y=spectrum, prominence=peak_prominence
         )
 
@@ -132,7 +132,7 @@ class neon(RamanProcessing):
         if not hasattr(self, "peaks"):
             raise NameError("peaks not found, run fitPeaks first")
 
-        neonEmission = sf.neonEmission(laser=laser)
+        neonEmission = f.neonEmission(laser=laser)
         left = np.round(
             np.float(
                 neonEmission.iloc[:, 4][
@@ -207,14 +207,14 @@ class neon(RamanProcessing):
 
 
 class CO2(RamanProcessing):
-    def FermiDiads(self, peak_prominence=40, fit_window=8, **kwargs):
+    def FermiDiad(self, peak_prominence=40, fit_window=8, **kwargs):
 
         y = kwargs.get("y", self.spectrumSelect)
         spectrum = self.intensities[y]
-        self.diads = {}
+        self.diad = {}
 
-        # fit parameters for diads
-        self.diads["fit_params1"], self.diads["fit_params2"] = sf.diads(
+        # fit parameters for diad
+        self.diad["fit_params1"], self.diad["fit_params2"] = f.diad(
             x=self.x,
             intensities=spectrum,
             peak_prominence=peak_prominence,
@@ -222,19 +222,19 @@ class CO2(RamanProcessing):
         )
 
         # diad curves
-        self.diads["peak1"] = {
-            "x": self.diads["fit_params1"]["x"],
-            "y": sf.GaussLorentz(**self.diads["fit_params1"]),
+        self.diad["peak1"] = {
+            "x": self.diad["fit_params1"]["x"],
+            "y": f.GaussLorentz(**self.diad["fit_params1"]),
         }
-        self.diads["peak2"] = {
-            "x": self.diads["fit_params2"]["x"],
-            "y": sf.GaussLorentz(**self.diads["fit_params2"]),
+        self.diad["peak2"] = {
+            "x": self.diad["fit_params2"]["x"],
+            "y": f.GaussLorentz(**self.diad["fit_params2"]),
         }
-        del self.diads["fit_params1"]["x"]
-        del self.diads["fit_params2"]["x"]
+        del self.diad["fit_params1"]["x"]
+        del self.diad["fit_params2"]["x"]
         # diad split
-        self.diads["split"] = abs(
-            self.diads["fit_params1"]["center"] - self.diads["fit_params2"]["center"]
+        self.diad["split"] = abs(
+            self.diad["fit_params1"]["center"] - self.diad["fit_params2"]["center"]
         )
 
 
@@ -255,7 +255,7 @@ class H2O(RamanProcessing):
                 "Run baseline correction again to to subtract baseline from Long corrected spectrum"
             )
 
-        self.intensities["long"] = sf.long_correction(
+        self.intensities["long"] = f.long_correction(
             self.x, spectrum, T_C, laser, normalisation
         )
         # self.LC = 1
@@ -272,7 +272,7 @@ class H2O(RamanProcessing):
         # olivine baseline interpolatin regions
         if isinstance(ol, list):
             olBirs = np.array(ol).reshape((len(ol) // 2, 2))
-        xbir, ybir = sf._extractBIR(self.x, spectrum, olBirs)
+        xbir, ybir = f._extractBIR(self.x, spectrum, olBirs)
 
         # Boolean array for glass only regions; no olivine peaks
         for i, region in enumerate(olBirs):
@@ -321,7 +321,7 @@ class H2O(RamanProcessing):
         # regions without olivine peaks
         if isinstance(birs, list):
             birs = np.array(birs).reshape((len(birs) // 2, 2))
-        xbir, ybir = sf._extractBIR(self.x, spectrum, birs)
+        xbir, ybir = f._extractBIR(self.x, spectrum, birs)
 
         # fit spline to olivine free regions of the spectrum
         spline = csaps(xbir, ybir, smooth=smooth)
@@ -333,7 +333,7 @@ class H2O(RamanProcessing):
         x = self.x[self.x < cutoff]
 
         # Get initial guesses
-        amplitudes, centers, widths = sf._find_peak_parameters(
+        amplitudes, centers, widths = f._find_peak_parameters(
             self.x, olivine, prominence=peak_prominence / 100 * olivine.max()
         )
 
@@ -358,7 +358,7 @@ class H2O(RamanProcessing):
 
             values = params.reshape((4, peakAmount))
 
-            return sf.sum_GaussLorentz(x, *values)
+            return f.sum_GaussLorentz(x, *values)
 
         # Fit peaks
         residuals = (
@@ -398,54 +398,92 @@ class olivine(H2O):
 
         super().__init__(x, intensity)
 
-    def deconvolve(self, peak_prominence, cutoff=1400, **kwargs):
+    def deconvolve(
+        self,
+        peak_prominence=2,
+        fit_window=4,
+        noise_threshold=1.4,
+        baseline0=False,
+        max_iterations=15,
+        cutoff=1400,
+        **kwargs
+    ):
 
         y = kwargs.get("y", self.spectrumSelect)
         spectrum = self.intensities[y][self.x < cutoff]
         x = self.x[self.x < cutoff]
 
-        # Get initial guesses
-        peaks = signal.find_peaks(spectrum, prominence=peak_prominence)
+        _, centers, widths = f._find_peak_parameters(
+            x=x, y=spectrum, prominence=peak_prominence
+        )
+        ranges = f._get_peakFit_ranges(
+            centers=centers, half_widths=widths, fit_window=fit_window
+        )
 
-        amplitudes, centers = spectrum[peaks[0]], x[peaks[0]]
-        widths = signal.peak_widths(spectrum, peaks[0])[0] * abs(np.diff(x).mean())
-
-        peakAmount = len(centers)
-        shapes = [0.5] * peakAmount
-
-        init_values = np.concatenate([centers, amplitudes, widths, shapes])
-
-        # Set boundary conditions
-        leftBoundSimple = [-np.inf, 0, 0, 0]
-        leftBound = np.repeat(leftBoundSimple, peakAmount)
-
-        rightBoundSimple = [np.inf, np.inf, np.inf, 1]
-        rightBound = np.repeat(rightBoundSimple, peakAmount)
-
-        bounds = (leftBound, rightBound)
-
-        def sum_GaussLorentz_reshape(x, params, peakAmount):
-            "Reshape parameters to use sum_GaussLorentz in least-squares regression"
-
-            values = params.reshape((4, peakAmount))
-
-            return sf.sum_GaussLorentz(x, *values)
-
-        # Least cost function
-        residuals = (
-            lambda params, x, peakAmount, spectrum: sum_GaussLorentz_reshape(
-                x, params, peakAmount, baselevel=0
+        fitted_parameters = []
+        for range in ranges:
+            xtrim, ytrim = f._trimxy_ranges(x, spectrum, range)
+            parameters, *_ = f.deconvolve_curve(
+                x=xtrim,
+                y=ytrim,
+                noise_threshold=noise_threshold,
+                prominence=peak_prominence,
+                baseline0=baseline0,
+                max_iterations=max_iterations,
             )
-            - spectrum
-        )
+            fitted_parameters.append(parameters)
 
-        LSfit = least_squares(
-            fun=residuals, x0=init_values, bounds=bounds, args=(x, peakAmount, spectrum)
-        )
+        self.deconvolution_parameters = []
+        for parameter in zip(*fitted_parameters):
+            self.deconvolution_parameters.append(np.concatenate(parameter))
 
-        fitParams = LSfit.x.reshape((4, peakAmount))
-
-        self.peaksFitted = [
-            {"center": i, "amplitude": j, "width": k, "shape": l}
-            for _, (i, j, k, l) in enumerate(zip(*fitParams))
+        self.peaks = [
+            {"center": i, "amplitude": j, "width": k, "shape": l, "baselevel": m}
+            for _, (i, j, k, l, m) in enumerate(zip(*self.deconvolution_parameters))
         ]
+
+        # # Get initial guesses
+        # peaks = signal.find_peaks(spectrum, prominence=peak_prominence)
+
+        # amplitudes, centers = spectrum[peaks[0]], x[peaks[0]]
+        # widths = signal.peak_widths(spectrum, peaks[0])[0] * abs(np.diff(x).mean())
+
+        # peakAmount = len(centers)
+        # shapes = [0.5] * peakAmount
+
+        # init_values = np.concatenate([centers, amplitudes, widths, shapes])
+
+        # # Set boundary conditions
+        # leftBoundSimple = [-np.inf, 0, 0, 0]
+        # leftBound = np.repeat(leftBoundSimple, peakAmount)
+
+        # rightBoundSimple = [np.inf, np.inf, np.inf, 1]
+        # rightBound = np.repeat(rightBoundSimple, peakAmount)
+
+        # bounds = (leftBound, rightBound)
+
+        # def sum_GaussLorentz_reshape(x, params, peakAmount):
+        #     "Reshape parameters to use sum_GaussLorentz in least-squares regression"
+
+        #     values = params.reshape((4, peakAmount))
+
+        #     return f.sum_GaussLorentz(x, *values)
+
+        # # Least cost function
+        # residuals = (
+        #     lambda params, x, peakAmount, spectrum: sum_GaussLorentz_reshape(
+        #         x, params, peakAmount, baselevel=0
+        #     )
+        #     - spectrum
+        # )
+
+        # LSfit = least_squares(
+        #     fun=residuals, x0=init_values, bounds=bounds, args=(x, peakAmount, spectrum)
+        # )
+
+        # fitParams = LSfit.x.reshape((4, peakAmount))
+
+        # self.peaksFitted = [
+        #     {"center": i, "amplitude": j, "width": k, "shape": l}
+        #     for _, (i, j, k, l) in enumerate(zip(*fitParams))
+        # ]
