@@ -1,15 +1,11 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Fri Jan  8 09:53:00 2021
-
-@author: u0123694
-"""
 import pandas as pd
 import numpy as np
 import warnings
 from scipy import signal
-from scipy.optimize import least_squares
 from importlib import resources
+import sklearn.metrics as skm
+import scipy.optimize as opt
+import csaps as cs
 
 
 def gaussian(x, amplitude, center, width, baselevel=0):
@@ -43,11 +39,10 @@ def sum_GaussLorenz(x, centers, amplitudes, widths, shapes, baselevels):
 
     if isinstance(baselevels, (int, float)):
         baselevels = [baselevels] * peakAmount
-        
+
     params = [
         {"center": i, "amplitude": j, "width": k, "baselevel": l, "shape": m}
-        for i, j, k, l, m in 
-            zip(centers, amplitudes, widths, baselevels, shapes)
+        for i, j, k, l, m in zip(centers, amplitudes, widths, baselevels, shapes)
     ]
 
     curves = GaussLorentz(x, **params[0])
@@ -89,7 +84,7 @@ def smooth(y, smoothType="gaussian", kernelWidth=9):
     """
     Parameters
     ----------
-    smoothtype  str 
+    smoothtype  str
         'movingAverage' or 'gaussian'
     kernelWidth (int)
         width of smoothing kernel in elements of y
@@ -138,17 +133,15 @@ def long_correction(x, intensities, T_C=25.0, laser=532.18, normalisation="area"
     # nu0 laser is in M-1 (wave is in nm)
     nu0 = 1.0 / laser * 1e9
     # K temperature
-    T = T_C + 273.15  
+    T = T_C + 273.15
 
     # Raman shift from cm-1 to m-1
-    nu = 100.0 * x 
+    nu = 100.0 * x
 
     # frequency correction; dimensionless
-    frequency = nu0 ** 3 * nu / ((nu0 - nu) ** 4)  
+    frequency = nu0 ** 3 * nu / ((nu0 - nu) ** 4)
     # temperature correction with Boltzman distribution; dimensionless
-    boltzman = 1.0 - np.exp(
-        -h * c * nu / (k * T)
-    )  
+    boltzman = 1.0 - np.exp(-h * c * nu / (k * T))
     intensityLong = intensities * frequency * boltzman  # correction
 
     if normalisation == "area":
@@ -162,7 +155,6 @@ def long_correction(x, intensities, T_C=25.0, laser=532.18, normalisation="area"
     return intensityLong
 
 
-
 def H2Oraman(rWS, slope):
     """Calculate water contents using the equation (3) from Le Losq et al. (2012)
 
@@ -173,7 +165,7 @@ def H2Oraman(rWS, slope):
 
     intercept & slope are determined empirically through calibration with standards
     """
-    
+
     return (100 * slope * rWS) / (1 + slope * rWS)
 
 
@@ -192,20 +184,22 @@ def diads(x, intensities, peak_prominence=40, fit_window=8, curve="GL"):
     x = x[(x > 1250) & (x < 1450)]
 
     # find initial guesses for peak fitting
-    amplitudes, centers, widths = _find_peak_parameters(x=x, y=intensities, prominence=peak_prominence)
+    amplitudes, centers, widths = _find_peak_parameters(
+        x=x, y=intensities, prominence=peak_prominence
+    )
 
     if amplitudes.shape[0] < 2:
         raise RuntimeError("less than two peaks found")
     if amplitudes.shape[0] > 2:
         warnings.warn("more than two peaks found")
-    
+
     # Sort peaks low to high amplitude and select the two highest
     sort_index = np.argsort(amplitudes)
     amplitudes = amplitudes[sort_index][-2:]
     centers = centers[sort_index][-2:]
     widths = widths[sort_index][-2:]
     # Gaussian - Lorentzian mixing paramter
-    shape = 0.5  
+    shape = 0.5
     # baselevel, should be 0 for baseline corrected spectra
     baselevel = 0
 
@@ -227,13 +221,17 @@ def diads(x, intensities, peak_prominence=40, fit_window=8, curve="GL"):
         init_values = np.array(amplitude, center, width, baselevel)
         if curve == "GL":
             init_values = np.append(init_values, shape)
-        
-        x_fit, y_fit = _trim_peakFit_areas(x, intensities, center, width, fit_window=fit_window)
 
-        params = least_squares(fun=residuals, x0=init_values, bounds=bounds, args=(x_fit, y_fit)).x
+        x_fit, y_fit = _trim_peakFit_ranges(
+            x, intensities, center, width, fit_window=fit_window
+        )
+
+        params = opt.least_squares(
+            fun=residuals, x0=init_values, bounds=bounds, args=(x_fit, y_fit)
+        ).x
         fit_params.append(params)
         fit_x.append(x_fit)
-    
+
     # Unpack output data
     fit_params1, fit_params2 = fit_params
     x1, x2 = fit_x
@@ -279,9 +277,12 @@ def _extractBIR(x, y, birs):
 
     return spectrumBir[:, 0], spectrumBir[:, 1]
 
+
 def _find_peak_parameters(x, y, prominence, **kwargs):
 
-    peaks = signal.find_peaks(y, prominence = prominence, **kwargs)
+    prominence_absolute = (prominence / 100) * max(y)
+
+    peaks = signal.find_peaks(y, prominence=prominence_absolute, **kwargs)
 
     amplitudes, centers = y[peaks[0]], x[peaks[0]]
     # full width half maximum in x
@@ -290,7 +291,7 @@ def _find_peak_parameters(x, y, prominence, **kwargs):
     return amplitudes, centers, widths
 
 
-def _trim_peakFit_areas(x, y, centers, half_widths, fit_window):
+def _trim_peakFit_areas_OLD(x, y, centers, half_widths, fit_window=4):
 
     trimmed_areas = []
 
@@ -299,6 +300,194 @@ def _trim_peakFit_areas(x, y, centers, half_widths, fit_window):
         trimmed_areas.append([x[trim], y[trim]])
 
     if len(trimmed_areas) == 1:
-        trimmed_areas = trimmed_areas[0]    
+        trimmed_areas = trimmed_areas[0]
 
     return trimmed_areas
+
+
+def _merge_overlapping_ranges(ranges):
+    """
+    Merge
+
+    Parameters
+    ----------
+    ranges : List[List]
+        list of lists containing start and end for per range
+
+    Returns
+    -------
+    merged ranges : List[List]
+        List of lists containing start and end for merged ranges
+    """
+
+    merged = [False] * len(ranges)
+
+    merged_ranges = []
+
+    for k, (area1, area2) in enumerate(zip(ranges[:-1], ranges[1:])):
+
+        if merged[k]:
+            if (k + 2) == len(ranges):
+                merged_ranges.append(area2)
+            continue
+
+        if np.max(area1) > np.min(area2):
+            merged_ranges.append([np.min(area1 + area2), np.max(area1 + area2)])
+            merged[k + 1] = True
+        else:
+            merged_ranges.append(sorted(area1))
+            if (k + 2) == len(ranges):
+                merged_ranges.append(area2)
+
+
+    return merged_ranges
+
+
+def _get_peakFit_ranges(centers, half_widths, fit_window=4, merge_overlap=True):
+
+    if isinstance(centers, (int, float)):
+        minimum = centers - fit_window * half_widths
+        maximum = centers + fit_window * half_widths
+
+        return [minimum, maximum]
+
+    ranges = []
+
+    for center, width in zip(centers, half_widths):
+        minimum = center - fit_window * width
+        maximum = center + fit_window * width
+        ranges.append([minimum, maximum])
+
+    if merge_overlap:
+        merged_ranges = _merge_overlapping_ranges(ranges)
+
+        merged = len(centers) - len(merged_ranges)
+
+        while merged > 0:
+
+            old = len(merged_ranges)
+            merged_ranges = _merge_overlapping_ranges(merged_ranges)
+            merged = old - len(merged_ranges)
+
+        ranges = merged_ranges
+
+    return ranges
+
+
+def _trimxy_ranges(x, y, ranges):
+
+    if not isinstance(ranges[0], list):
+        trim = (x > ranges[0]) & (x < ranges[1])
+        return [x[trim], y[trim]]
+
+    trimmed_xy = []
+
+    for range in ranges:
+        trim = (x > range[0]) & (x < range[1])
+        trimmed_xy.append([x[trim], y[trim]])
+
+    return trimmed_xy
+
+
+def _trim_peakFit_ranges(x, y, centers, half_widths, fit_window=4, merge_overlap=True):
+
+    ranges = _get_peakFit_ranges(
+        centers, half_widths, fit_window=fit_window, merge_overlap=merge_overlap
+    )
+
+    return _trimxy_ranges(x, y, ranges)
+
+
+def deconvolve_curve(x, y, prominence=2., noise_threshold=1.5, extra_loops : int=0):
+    """
+    Docstrings
+    """
+
+    # Calculate absolute noise on the signal
+    noise, spline = _calculate_noise(x, y)
+
+    # Initial guesses
+    amplitudes, centers, widths = _find_peak_parameters(x, spline, prominence)
+    peakAmount = len(amplitudes)
+    shapes = np.array([1.0] * peakAmount)
+    baselevels = np.array([0.0] * peakAmount)
+
+    initvalues = np.concatenate((centers, amplitudes, widths, shapes, baselevels))
+
+    # boundary conditions
+    leftBoundSimple = [x.min(), 0, 0, 0, 0]
+    rightBoundSimple = [x.max(), np.inf, np.inf, 1, np.inf]
+
+    def sumGaussians_reshaped(x, params, peakAmount):
+        "Reshape parameters to use sum_GaussLorenz in least-squares regression"
+
+        values = params.reshape((5, peakAmount))
+
+        return sum_GaussLorenz(x, *values)
+
+    residuals = lambda params, x, y, peakAmount: sumGaussians_reshaped(x, params, peakAmount) - y
+    # Flag for stopping the while loop
+    stop = 0
+    while True:
+
+        # Set up bounds
+        leftBound = np.repeat(leftBoundSimple, peakAmount)
+        rightBound = np.repeat(rightBoundSimple, peakAmount)
+        bounds = (leftBound, rightBound)
+
+        LSfit = opt.least_squares(
+            residuals,
+            x0=initvalues,
+            bounds=bounds,
+            args=(x, y, peakAmount),
+            loss="soft_l1"
+        )
+        # Parameters for sum_GaussLorentz
+        fitParams = LSfit.x.reshape((5, peakAmount))
+        # Parameters for individual peaks
+        paramDict = [
+            {"center": i, "amplitude": j, "width": k, "shape": l, "baselevel": m}
+            for _, (i, j, k, l, m) in enumerate(zip(*fitParams))
+        ]
+
+        # R squared adjusted for noise
+        data_mean = y.mean()
+        residue =  y - sum_GaussLorenz(x, *fitParams)
+        residual_sum = sum((residue / noise)**2)
+        sum_squares = sum((y - data_mean)**2)
+        R2_noise = 1 - (residual_sum/sum_squares)  
+
+        # Residual noise on the fit, as standard deviation on the residuals
+        fit_noise = (y - sum_GaussLorenz(x, *fitParams)).std()      
+
+        if fit_noise < (noise * noise_threshold):
+            # Stop after some extra loops
+            if stop == extra_loops:
+                break
+            stop += 1
+
+        residue_abs = abs(y - sum_GaussLorenz(x, *fitParams))
+        # Add new peak where residuals are higest
+        peakAmount += 1
+        amplitudes = np.append(amplitudes, residue_abs.max())
+        centers = np.append(centers, x[np.where(residue_abs == residue_abs.max())])
+        widths = np.append(widths, widths.mean())
+        shapes = np.append(shapes, 1)
+        baselevels = np.append(baselevels, 0)
+
+        initvalues = np.concatenate((centers, amplitudes, widths, shapes, baselevels))
+
+    return fitParams, R2_noise, fit_noise
+
+
+def _calculate_noise(x, y, smooth_factor=1):
+
+    max_difference = y.max() - y.min()
+    # Emperically found this is a gives ok smoothing factors
+    smooth = 2e-4 * max_difference * smooth_factor
+
+    spline = cs.csaps(x, y, x, smooth=smooth)
+    noise_data = y - spline
+    noise = noise_data.std(axis=None)
+
+    return noise, spline
