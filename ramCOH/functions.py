@@ -368,6 +368,8 @@ def _get_peakFit_ranges(centers, half_widths, fit_window=4, merge_overlap=True):
             old = len(merged_ranges)
             merged_ranges = _merge_overlapping_ranges(merged_ranges)
             merged = old - len(merged_ranges)
+            if len(merged_ranges) == 1:
+                break
 
         ranges = merged_ranges
 
@@ -406,7 +408,9 @@ def deconvolve_curve(x, y, prominence=2., noise_threshold=1.5, extra_loops : int
     # Calculate absolute noise on the signal
     noise, spline = _calculate_noise(x, y)
 
-    # Initial guesses
+
+
+    # Initial guesses for peak parameters
     amplitudes, centers, widths = _find_peak_parameters(x, spline, prominence)
     peakAmount = len(amplitudes)
     shapes = np.array([1.0] * peakAmount)
@@ -414,9 +418,14 @@ def deconvolve_curve(x, y, prominence=2., noise_threshold=1.5, extra_loops : int
 
     initvalues = np.concatenate((centers, amplitudes, widths, shapes, baselevels))
 
-    # boundary conditions
-    leftBoundSimple = [x.min(), 0, 0, 0, 0]
-    rightBoundSimple = [x.max(), np.inf, np.inf, 1, np.inf]
+    # Boundary conditions
+    resolution = np.diff(x).mean()
+    min_width = 6 * resolution
+    xlength = x.max() - x.min()
+
+    # Left and right limits for: center, amplitude, width, shape and baselevel
+    leftBoundSimple = [x.min(), noise, min_width, 0., -1]
+    rightBoundSimple = [x.max(), y.max(), xlength, 1., y.max()]
 
     def sumGaussians_reshaped(x, params, peakAmount):
         "Reshape parameters to use sum_GaussLorenz in least-squares regression"
@@ -425,6 +434,7 @@ def deconvolve_curve(x, y, prominence=2., noise_threshold=1.5, extra_loops : int
 
         return sum_GaussLorenz(x, *values)
 
+    # Cost function to minimise
     residuals = lambda params, x, y, peakAmount: sumGaussians_reshaped(x, params, peakAmount) - y
     # Flag for stopping the while loop
     stop = 0
@@ -434,7 +444,7 @@ def deconvolve_curve(x, y, prominence=2., noise_threshold=1.5, extra_loops : int
         leftBound = np.repeat(leftBoundSimple, peakAmount)
         rightBound = np.repeat(rightBoundSimple, peakAmount)
         bounds = (leftBound, rightBound)
-
+        # Optimise fit parameters
         LSfit = opt.least_squares(
             residuals,
             x0=initvalues,
@@ -466,7 +476,7 @@ def deconvolve_curve(x, y, prominence=2., noise_threshold=1.5, extra_loops : int
                 break
             stop += 1
 
-        residue_abs = abs(y - sum_GaussLorenz(x, *fitParams))
+        residue_abs = abs(residue)
         # Add new peak where residuals are higest
         peakAmount += 1
         amplitudes = np.append(amplitudes, residue_abs.max())
