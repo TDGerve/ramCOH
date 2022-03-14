@@ -403,7 +403,7 @@ def _trim_peakFit_ranges(x, y, centers, half_widths, fit_window=4, merge_overlap
     return _trimxy_ranges(x, y, ranges)
 
 
-def deconvolve_curve(
+def deconvolve_signal(
     x,
     y,
     prominence=2.0,
@@ -441,7 +441,7 @@ def deconvolve_curve(
 
     initvalues = np.concatenate((centers, amplitudes, widths, shapes, baselevels))
 
-    # Number of parameters, 5 for fitted baselevel, 4 for 0 baselevel
+    # Number of fit parameters per curve: 5 for fitted baselevel, 4 for fixed baselevel
     parameters = 5
     # Remove bounds if baseline is fixed at 0
     if baseline0:
@@ -464,7 +464,7 @@ def deconvolve_curve(
         return sum_GaussLorenz(x, *values)
 
     
-    # Noise on ititial fit, is used in the main loop to check if the fit has improved each iteration.
+    # Noise on ititial fit, used in the main loop to check if the fit has improved each iteration.
     fit_noise_old = (y - sumGaussians_reshaped(x, initvalues, peakAmount)).std()
     # Save the initial values in case the first iteration doesn't give an imporovement
     fitParams_old = initvalues.reshape((parameters, peakAmount))
@@ -477,7 +477,7 @@ def deconvolve_curve(
         - y
     )
 
-    # Flag for stopping the while loop
+    # Flags for stopping the while loop
     stop = 0
     iterations = 0
     while True:
@@ -498,12 +498,6 @@ def deconvolve_curve(
         fitParams = LSfit.x.reshape((parameters, peakAmount))
         if baseline0:
             fitParams = np.vstack((fitParams, np.array([0.0] * peakAmount)))
-
-        # Parameters for individual peaks
-        paramDict = [
-            {"center": i, "amplitude": j, "width": k, "shape": l, "baselevel": m}
-            for _, (i, j, k, l, m) in enumerate(zip(*fitParams))
-        ]
 
         # R squared adjusted for noise
         data_mean = y.mean()
@@ -533,9 +527,8 @@ def deconvolve_curve(
                 break
             stop += 1
 
-        fit_noise_old = fit_noise.copy()
+        
 
-        # residue_abs = abs(residue)
         # Add new peak
         peakAmount += 1
         # Get initial guess for new peak
@@ -553,8 +546,9 @@ def deconvolve_curve(
 
         if baseline0:
             initvalues = initvalues[:-peakAmount]
-        # Save old fitted parameters in case the new iteration has a worse fit
+        # Save old noise and fitted parameters for comparison in next iteration.
         fitParams_old = fitParams.copy()
+        fit_noise_old = fit_noise.copy()
 
     return fitParams, R2_noise, fit_noise
 

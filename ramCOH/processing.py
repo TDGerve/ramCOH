@@ -424,7 +424,7 @@ class olivine(H2O):
         fitted_parameters = []
         for range in ranges:
             xtrim, ytrim = f._trimxy_ranges(x, spectrum, range)
-            parameters, *_ = f.deconvolve_curve(
+            parameters, *_ = f.deconvolve_signal(
                 x=xtrim,
                 y=ytrim,
                 noise_threshold=noise_threshold,
@@ -444,48 +444,3 @@ class olivine(H2O):
             for _, (i, j, k, l, m) in enumerate(zip(*self.deconvolution_parameters))
         ]
 
-        # # Get initial guesses
-        # peaks = signal.find_peaks(spectrum, prominence=peak_prominence)
-
-        # amplitudes, centers = spectrum[peaks[0]], x[peaks[0]]
-        # widths = signal.peak_widths(spectrum, peaks[0])[0] * abs(np.diff(x).mean())
-
-        # peakAmount = len(centers)
-        # shapes = [0.5] * peakAmount
-
-        # init_values = np.concatenate([centers, amplitudes, widths, shapes])
-
-        # # Set boundary conditions
-        # leftBoundSimple = [-np.inf, 0, 0, 0]
-        # leftBound = np.repeat(leftBoundSimple, peakAmount)
-
-        # rightBoundSimple = [np.inf, np.inf, np.inf, 1]
-        # rightBound = np.repeat(rightBoundSimple, peakAmount)
-
-        # bounds = (leftBound, rightBound)
-
-        # def sum_GaussLorentz_reshape(x, params, peakAmount):
-        #     "Reshape parameters to use sum_GaussLorentz in least-squares regression"
-
-        #     values = params.reshape((4, peakAmount))
-
-        #     return f.sum_GaussLorentz(x, *values)
-
-        # # Least cost function
-        # residuals = (
-        #     lambda params, x, peakAmount, spectrum: sum_GaussLorentz_reshape(
-        #         x, params, peakAmount, baselevel=0
-        #     )
-        #     - spectrum
-        # )
-
-        # LSfit = least_squares(
-        #     fun=residuals, x0=init_values, bounds=bounds, args=(x, peakAmount, spectrum)
-        # )
-
-        # fitParams = LSfit.x.reshape((4, peakAmount))
-
-        # self.peaksFitted = [
-        #     {"center": i, "amplitude": j, "width": k, "shape": l}
-        #     for _, (i, j, k, l) in enumerate(zip(*fitParams))
-        # ]
