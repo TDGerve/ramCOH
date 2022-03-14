@@ -400,10 +400,10 @@ class olivine(H2O):
 
     def deconvolve(
         self,
-        peak_prominence=2,
+        peak_prominence=3,
         fit_window=4,
-        noise_threshold=1.4,
-        baseline0=False,
+        noise_threshold=1.8,
+        baseline0=True,
         max_iterations=15,
         cutoff=1400,
         extra_loops=0,

@@ -421,15 +421,16 @@ def deconvolve_curve(
     # Boundary conditions
     resolution = np.diff(x).mean()
     min_width = 6 * resolution
+    min_amplitude = noise * 2
     xlength = x.max() - x.min()
     # Left and right limits for: center, amplitude, width, shape and baselevel
-    leftBoundSimple = [x.min(), noise, min_width, 0.0, -5]
+    leftBoundSimple = [x.min(), min_amplitude, min_width, 0.0, -5]
     rightBoundSimple = [x.max(), y.max() * 1.5, xlength, 1.0, y.max()]
 
     # Initial guesses for peak parameters
-    amplitudes, centers, widths = _find_peak_parameters(x, spline, prominence / 2)
+    amplitudes, centers, widths = _find_peak_parameters(x, spline, prominence)
     # Remove initial guesses that are too narrow or too low amplitude
-    keep = np.where((widths > min_width) & (amplitudes > noise))
+    keep = np.where((widths > min_width) & (amplitudes > min_amplitude))
     amplitudes = amplitudes[keep]
     centers = centers[keep]
     widths = widths[keep]
@@ -439,9 +440,10 @@ def deconvolve_curve(
     baselevels = np.array([0.0] * peakAmount)
 
     initvalues = np.concatenate((centers, amplitudes, widths, shapes, baselevels))
+
     # Number of parameters, 5 for fitted baselevel, 4 for 0 baselevel
     parameters = 5
-
+    # Remove bounds if baseline is fixed at 0
     if baseline0:
         leftBoundSimple = leftBoundSimple[:-1]
         rightBoundSimple = rightBoundSimple[:-1]
@@ -461,8 +463,13 @@ def deconvolve_curve(
 
         return sum_GaussLorenz(x, *values)
 
+    
     # Noise on ititial fit, is used in the main loop to check if the fit has improved each iteration.
     fit_noise_old = (y - sumGaussians_reshaped(x, initvalues, peakAmount)).std()
+    # Save the initial values in case the first iteration doesn't give an imporovement
+    fitParams_old = initvalues.reshape((parameters, peakAmount))
+    if baseline0:
+        fitParams_old = np.vstack((fitParams_old, np.array([0.0] * peakAmount)))
 
     # Cost function to minimise
     residuals = (
@@ -487,7 +494,7 @@ def deconvolve_curve(
             args=(x, y, peakAmount),
             loss="linear",
         )
-        # Parameters for sum_GaussLorentz
+        # Fitted parameters for sum_GaussLorentz
         fitParams = LSfit.x.reshape((parameters, peakAmount))
         if baseline0:
             fitParams = np.vstack((fitParams, np.array([0.0] * peakAmount)))
@@ -509,14 +516,17 @@ def deconvolve_curve(
         fit_noise = (y - sum_GaussLorenz(x, *fitParams)).std()
 
         iterations += 1
+        # Stop is max iterations has been reached
         if iterations >= max_iterations:
             warnings.warn(f"max iterations reached: {max_iterations}")
             break
         # Stop if noise has increased from previous iteration
         if fit_noise_old < fit_noise:
-            warnings.warn("Noise increased from last iteration, calculation stopped")
+            warnings.warn("Noise increased from last iteration, using previous result")
+            # Revert back to previous fitted values
+            fitParams = fitParams_old.copy()
             break
-
+        # Stop if noise on the fit is below the noise threshold
         if fit_noise < (noise * noise_threshold):
             # Stop after some extra loops
             if stop == extra_loops:
@@ -526,11 +536,16 @@ def deconvolve_curve(
         fit_noise_old = fit_noise.copy()
 
         # residue_abs = abs(residue)
-        # Add new peak where residuals are higest
+        # Add new peak
         peakAmount += 1
-        amplitudes = np.append(amplitudes, y[np.where(residue == residue.max())])
-        centers = np.append(centers, x[np.where(residue == residue.max())])
-        widths = np.append(widths, widths.mean())
+        # Get initial guess for new peak
+        amplitude = np.max((y[np.where(residue == residue.max())][0], min_amplitude))
+        width = np.max((widths.mean(), min_width))
+        center = x[np.where(residue == residue.max())][0]
+
+        amplitudes = np.append(amplitudes, amplitude)
+        centers = np.append(centers, center)
+        widths = np.append(widths, width)
         shapes = np.append(shapes, 1)
         baselevels = np.append(baselevels, 0)
 
@@ -538,6 +553,8 @@ def deconvolve_curve(
 
         if baseline0:
             initvalues = initvalues[:-peakAmount]
+        # Save old fitted parameters in case the new iteration has a worse fit
+        fitParams_old = fitParams.copy()
 
     return fitParams, R2_noise, fit_noise
 
