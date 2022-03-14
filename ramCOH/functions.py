@@ -173,7 +173,7 @@ def H2Oraman(rWS, slope):
     return (100 * slope * rWS) / (1 + slope * rWS)
 
 
-def diads(x, intensities, peak_prominence=40, fit_window=8, curve="GL"):
+def diad(x, intensities, peak_prominence=40, fit_window=8, curve="GL"):
     # Fit curves to the two highest peaks in the 1250 - 1450cm-1 window
 
     # set up the cost function
@@ -485,7 +485,7 @@ def deconvolve_curve(
             x0=initvalues,
             bounds=bounds,
             args=(x, y, peakAmount),
-            loss="soft_l1",
+            loss="linear",
         )
         # Parameters for sum_GaussLorentz
         fitParams = LSfit.x.reshape((parameters, peakAmount))
