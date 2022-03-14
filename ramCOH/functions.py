@@ -8,12 +8,12 @@ import scipy.optimize as opt
 import csaps as cs
 
 
-def gaussian(x, amplitude, center, width, baselevel=0):
+def Gaussian(x, amplitude, center, width, baselevel=0):
 
     return amplitude * np.exp(-((x - center) ** 2) / (2 * width ** 2)) + baselevel
 
 
-def lorentzian(x, amplitude, center, width, baselevel=0):
+def Lorentzian(x, amplitude, center, width, baselevel=0):
 
     return amplitude * width ** 2 / ((x - center) ** 2 + width ** 2) + baselevel
 
@@ -21,15 +21,15 @@ def lorentzian(x, amplitude, center, width, baselevel=0):
 def GaussLorentz(x, amplitude, center, width, baselevel, shape):
 
     return (
-        gaussian(x, amplitude * (1 - shape), center, width, 0)
-        + lorentzian(x, amplitude * shape, center, width, 0)
+        Gaussian(x, amplitude * (1 - shape), center, width, 0)
+        + Lorentzian(x, amplitude * shape, center, width, 0)
         + baselevel
     )
 
 
 # Do not add baselevels to each curve, but only to the composed curve at the end
 # Adjust all other functions as well, deconvolve etc
-def sum_GaussLorenz(x, centers, amplitudes, widths, shapes, baselevels):
+def sum_GaussLorentz(x, centers, amplitudes, widths, shapes, baselevels):
     """add mixed Gauss-Lorentzian curves together
 
     Parameters
@@ -84,12 +84,12 @@ def neonEmission(laser=532.18):
     return neon
 
 
-def smooth(y, smoothType="gaussian", kernelWidth=9):
+def smooth(y, smoothType="Gaussian", kernelWidth=9):
     """
     Parameters
     ----------
     smoothtype  str
-        'movingAverage' or 'gaussian'
+        'movingAverage' or 'Gaussian'
     kernelWidth (int)
         width of smoothing kernel in elements of y
     """
@@ -97,17 +97,17 @@ def smooth(y, smoothType="gaussian", kernelWidth=9):
 
     if smoothType == "movingAverage":
         kernel = np.ones((kernelWidth,)) / kernelWidth
-    elif smoothType == "gaussian":
+    elif smoothType == "Gaussian":
         kernel = np.fromiter(
             (
-                gaussian(x, 1, 0, kernelWidth / 3, 0)
+                Gaussian(x, 1, 0, kernelWidth / 3, 0)
                 for x in range(-(kernelWidth - 1) // 2, (kernelWidth + 1) // 2, 1)
             ),
             np.float,
         )
         kernel = kernel / sum(kernel)
     else:
-        ValueError("select smoothtype 'movingAverage' or 'gaussian'")
+        ValueError("select smoothtype 'movingAverage' or 'Gaussian'")
 
     return np.convolve(y, kernel, mode="valid")
 
@@ -177,7 +177,7 @@ def diad(x, intensities, peak_prominence=40, fit_window=8, curve="GL"):
     # Fit curves to the two highest peaks in the 1250 - 1450cm-1 window
 
     # set up the cost function
-    curveDict = {"GL": GaussLorentz, "G": gaussian, "L": lorentzian}
+    curveDict = {"GL": GaussLorentz, "G": Gaussian, "L": Lorentzian}
     residuals = lambda params, x, spectrum: curveDict[curve](x, *params) - spectrum
 
     # check if the diad is within range of the spectrum
@@ -293,20 +293,6 @@ def _find_peak_parameters(x, y, prominence, **kwargs):
     widths = signal.peak_widths(y, peaks[0])[0] * abs(np.diff(x).mean())
 
     return amplitudes, centers, widths
-
-
-def _trim_peakFit_areas_OLD(x, y, centers, half_widths, fit_window=4):
-
-    trimmed_areas = []
-
-    for center, width in zip(centers, half_widths):
-        trim = (x > (center - width * fit_window)) & (x < (center + width * fit_window))
-        trimmed_areas.append([x[trim], y[trim]])
-
-    if len(trimmed_areas) == 1:
-        trimmed_areas = trimmed_areas[0]
-
-    return trimmed_areas
 
 
 def _merge_overlapping_ranges(ranges):
@@ -453,7 +439,7 @@ def deconvolve_signal(
     def sumGaussians_reshaped(
         x, params, peakAmount, baseline_fixed=baseline0, baseline=0.0
     ):
-        "Reshape parameters to use sum_GaussLorenz in least-squares regression"
+        "Reshape parameters to use sum_GaussLorentz in least-squares regression"
 
         if baseline_fixed:
             baselevels = np.array([baseline] * peakAmount)
@@ -461,7 +447,7 @@ def deconvolve_signal(
 
         values = params.reshape((5, peakAmount))
 
-        return sum_GaussLorenz(x, *values)
+        return sum_GaussLorentz(x, *values)
 
     
     # Noise on ititial fit, used in the main loop to check if the fit has improved each iteration.
@@ -501,13 +487,13 @@ def deconvolve_signal(
 
         # R squared adjusted for noise
         data_mean = y.mean()
-        residue = y - sum_GaussLorenz(x, *fitParams)
+        residue = y - sum_GaussLorentz(x, *fitParams)
         residual_sum = sum((residue / noise) ** 2)
         sum_squares = sum((y - data_mean) ** 2)
         R2_noise = 1 - (residual_sum / sum_squares)
 
         # Residual noise on the fit, as standard deviation on the residuals
-        fit_noise = (y - sum_GaussLorenz(x, *fitParams)).std()
+        fit_noise = (y - sum_GaussLorentz(x, *fitParams)).std()
 
         iterations += 1
         # Stop is max iterations has been reached
