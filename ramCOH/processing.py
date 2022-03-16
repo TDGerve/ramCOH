@@ -41,7 +41,7 @@ class RamanProcessing:
         self.smoothing = True
         self.spectrumSelect = "smooth"
 
-    def baselineCorrect(self, birs, smooth=1e-6, **kwargs):
+    def baselineCorrect(self, birs, smooth_factor=1, **kwargs):
         """
         Baseline correction with fitted natural smoothing splines from csaps
 
@@ -55,6 +55,9 @@ class RamanProcessing:
             warn("run normalisation again to normalise baseline corrected spectrum")
 
         xbir, ybir = f._extractBIR(self.x, spectrum, birs)
+
+        max_difference = ybir.max() - ybir.min()
+        smooth = 2e-9 * max_difference * smooth_factor
 
         spline = csaps(xbir, ybir, smooth=smooth)
         self.baseline = spline(self.x)
@@ -133,7 +136,9 @@ class RamanProcessing:
         fit_window=4,
         noise_threshold=1.8,
         baseline0=True,
-        max_iterations=15,
+        min_peak_width=6,
+        noise=None,
+        max_iterations=10,
         cutoff=1400,
         extra_loops=0,
         **kwargs
@@ -159,6 +164,8 @@ class RamanProcessing:
                 noise_threshold=noise_threshold,
                 prominence=peak_prominence,
                 baseline0=baseline0,
+                min_peak_width=min_peak_width,
+                noise=noise,
                 extra_loops=extra_loops,
                 max_iterations=max_iterations,
             )
@@ -175,6 +182,27 @@ class RamanProcessing:
 
 
 class neon(RamanProcessing):
+
+    birs = np.array(
+        [
+            [1027, 1108],
+            [1118, 1213],
+            [1221, 1303],
+            [1312, 1390],
+            [1401, 1435],
+            [1450, 1464],
+        ]
+    )
+
+    def calculate_noise(self, birs=birs):
+
+        if not hasattr(self, "baseline"):
+            raise NameError("baseline not found, run baseline correction first")
+        xbir, ybir = f._extractBIR(self.x, self.intensities["BC"], birs)
+        self.noise, _ = f._calculate_noise(xbir, ybir, smooth_factor=1e-5)
+
+
+
     def neonCorrection(
         self, left_nm=565.666, right_nm=574.83, laser=532.18, search_window=6
     ):
@@ -448,7 +476,7 @@ class H2O(RamanProcessing):
 
 class olivine(H2O):
 
-    birs = np.array([[100, 140], [370, 380], [470, 515], [680, 740], [1020, 4000]])
+    birs = np.array([[100, 230], [370, 380], [470, 515], [680, 740], [1020, 4000]])
 
     def __init__(self, x, intensity):
 

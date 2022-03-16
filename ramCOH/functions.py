@@ -322,6 +322,12 @@ def _find_peak_parameters(x, y, prominence, **kwargs):
     # full width half maximum in x
     widths = signal.peak_widths(y, peaks[0])[0] * abs(np.diff(x).mean())
 
+    sort = np.argsort(centers)
+
+    amplitudes = amplitudes[sort]
+    centers = centers[sort]
+    widths = widths[sort]
+
     return amplitudes, centers, widths
 
 
@@ -386,6 +392,10 @@ def _get_peakFit_ranges(centers, half_widths, fit_window=4, merge_overlap=True):
         maximum = centers + fit_window * half_widths
 
         return [minimum, maximum]
+
+    sort = np.argsort(centers)
+    centers = centers[sort]
+    half_widths = half_widths[sort]
 
     ranges = []
 
@@ -477,7 +487,9 @@ def deconvolve_signal(
     prominence=2.0,
     noise_threshold=1.5,
     baseline0=False,
-    max_iterations=15,
+    min_peak_width=6,
+    noise=None,
+    max_iterations=10,
     extra_loops: int = 0,
 ):
     """
@@ -493,6 +505,10 @@ def deconvolve_signal(
         Fit is accepted when the standard deviation of the fit residuals fall below (noise on y) * noise_threshold
     baseline0 : bool
         fix baselevel of fitted curves to 0
+    min_peak_width : int, float
+        minimum width of fitted peaks (full width at half maximum) in x stepsize.
+    noise : float, int (optional)
+        Absolute noise on y
     max_iterations : int
         maximum loop iterations. One new curve is added each loop
     extra_loops : int
@@ -507,20 +523,21 @@ def deconvolve_signal(
     fit_noise : float
         standard deviation on the residuals of y and the fit result
     """
-    # Calculate absolute noise on the signal
-    noise, spline = _calculate_noise(x=x, y=y)
+    # Calculate absolute noise on the total signal or baseline
+    if noise is None:
+        noise, _ = _calculate_noise(x=x, y=y)
 
     # Boundary conditions
     resolution = np.diff(x).mean()
-    min_width = 6 * resolution
-    min_amplitude = noise * 2
+    min_width = min_peak_width * resolution
+    min_amplitude = noise * 3
     xlength = x.max() - x.min()
     # Left and right limits for: center, amplitude, width, shape and baselevel
     leftBoundSimple = [x.min(), min_amplitude, min_width, 0.0, -5]
     rightBoundSimple = [x.max(), y.max() * 1.5, xlength, 1.0, y.max()]
 
     # Initial guesses for peak parameters
-    amplitudes, centers, widths = _find_peak_parameters(x, spline, prominence)
+    amplitudes, centers, widths = _find_peak_parameters(x, y, prominence)
     # Remove initial guesses that are too narrow or too low amplitude
     keep = np.where((widths > min_width) & (amplitudes > min_amplitude))
     amplitudes = amplitudes[keep]
@@ -667,9 +684,9 @@ def _calculate_noise(x, y, smooth_factor=1):
     # Emperically found this is gives ok smoothing factors for most spectra
     smooth = 2e-4 * max_difference * smooth_factor
     # Fit spline
-    spline = cs.csaps(x, y, x, smooth=smooth)
+    spline = cs.csaps(x, y, smooth=smooth)
     # Standard deviation on the residuals of y and spline
-    noise_data = y - spline
+    noise_data = y - spline(x)
     noise = noise_data.std(axis=None)
 
     return noise, spline
