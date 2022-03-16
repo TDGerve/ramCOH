@@ -522,6 +522,7 @@ def deconvolve_signal(
     fit_noise : float
         standard deviation on the residuals of y and the fit result
     """
+
     # Calculate noise on the total signal
     if noise is None:
         noise, _ = _calculate_noise(x=x, y=y)
@@ -656,6 +657,7 @@ def deconvolve_signal(
         # Save old noise and fitted parameters for comparison in next iteration.
         fitParams_old = fitParams.copy()
         fit_noise_old = fit_noise.copy()
+
 
     return fitParams, R2_noise, fit_noise
 
