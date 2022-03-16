@@ -27,8 +27,7 @@ def GaussLorentz(x, amplitude, center, width, baselevel, shape):
     )
 
 
-# Do not add baselevels to each curve, but only to the composed curve at the end
-# Adjust all other functions as well, deconvolve etc
+
 def sum_GaussLorentz(x, centers, amplitudes, widths, shapes, baselevels):
     """add mixed Gauss-Lorentzian curves together
 
@@ -523,7 +522,7 @@ def deconvolve_signal(
     fit_noise : float
         standard deviation on the residuals of y and the fit result
     """
-    # Calculate absolute noise on the total signal or baseline
+    # Calculate noise on the total signal
     if noise is None:
         noise, _ = _calculate_noise(x=x, y=y)
 

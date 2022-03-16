@@ -67,6 +67,17 @@ class RamanProcessing:
         # self.spectrumSelect = intensityDict[self.BC + self.norm]
         self.spectrumSelect = "BC"
 
+    def calculate_noise(self, baseline_regions=None, smooth_factor=1e-5):
+
+        if not hasattr(self, "baseline"):
+            raise NameError("baseline not found, run baseline correction first")
+
+        if (hasattr(self, "birs")) & (baseline_regions is None):
+            baseline_regions = self.birs
+
+        xbir, ybir = f._extractBIR(self.x, self.intensities["BC"], baseline_regions)
+        self.noise, _ = f._calculate_noise(xbir, ybir, smooth_factor=smooth_factor)
+
     def normalise(self, **kwargs):
 
         y = kwargs.get("y", self.spectrumSelect)
@@ -139,14 +150,14 @@ class RamanProcessing:
         min_peak_width=6,
         noise=None,
         max_iterations=10,
-        cutoff=1400,
         extra_loops=0,
         **kwargs
     ):
 
         y = kwargs.get("y", self.spectrumSelect)
-        spectrum = self.intensities[y][self.x < cutoff]
-        x = self.x[self.x < cutoff]
+        spectrum = self.intensities[y]
+        x = self.x
+
 
         _, centers, widths = f._find_peak_parameters(
             x=x, y=spectrum, prominence=peak_prominence
@@ -193,15 +204,6 @@ class neon(RamanProcessing):
             [1450, 1464],
         ]
     )
-
-    def calculate_noise(self, birs=birs):
-
-        if not hasattr(self, "baseline"):
-            raise NameError("baseline not found, run baseline correction first")
-        xbir, ybir = f._extractBIR(self.x, self.intensities["BC"], birs)
-        self.noise, _ = f._calculate_noise(xbir, ybir, smooth_factor=1e-5)
-
-
 
     def neonCorrection(
         self, left_nm=565.666, right_nm=574.83, laser=532.18, search_window=6
