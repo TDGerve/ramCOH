@@ -483,10 +483,10 @@ def _trim_peakFit_ranges(x, y, centers, half_widths, fit_window=4, merge_overlap
 def deconvolve_signal(
     x,
     y,
-    prominence=2.0,
     noise_threshold=1.5,
     baseline0=False,
     min_peak_width=6,
+    min_amplitude=4,
     noise=None,
     max_iterations=10,
     extra_loops: int = 0,
@@ -527,10 +527,13 @@ def deconvolve_signal(
     if noise is None:
         noise, _ = _calculate_noise(x=x, y=y)
 
+    # Set peak prominence to 8 times noise levels
+    prominence = ((noise * 4) / y.max()) * 100
+
     # Boundary conditions
     resolution = np.diff(x).mean()
     min_width = min_peak_width * resolution
-    min_amplitude = noise * 3
+    min_amplitude = noise * min_amplitude
     xlength = x.max() - x.min()
     # Left and right limits for: center, amplitude, width, shape and baselevel
     leftBoundSimple = [x.min(), min_amplitude, min_width, 0.0, -5]

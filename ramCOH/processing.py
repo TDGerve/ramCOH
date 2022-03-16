@@ -148,6 +148,7 @@ class RamanProcessing:
         noise_threshold=1.8,
         baseline0=True,
         min_peak_width=6,
+        min_amplitude=2,
         noise=None,
         max_iterations=10,
         extra_loops=0,
@@ -157,7 +158,6 @@ class RamanProcessing:
         y = kwargs.get("y", self.spectrumSelect)
         spectrum = self.intensities[y]
         x = self.x
-
 
         _, centers, widths = f._find_peak_parameters(
             x=x, y=spectrum, prominence=peak_prominence
@@ -169,24 +169,28 @@ class RamanProcessing:
         fitted_parameters = []
         for range in ranges:
             xtrim, ytrim = f._trimxy_ranges(x, spectrum, range)
-            parameters, *_ = f.deconvolve_signal(
-                x=xtrim,
-                y=ytrim,
-                noise_threshold=noise_threshold,
-                prominence=peak_prominence,
-                baseline0=baseline0,
-                min_peak_width=min_peak_width,
-                noise=noise,
-                extra_loops=extra_loops,
-                max_iterations=max_iterations,
-            )
-            fitted_parameters.append(parameters)
+            try:
+                parameters, *_ = f.deconvolve_signal(
+                    x=xtrim,
+                    y=ytrim,
+                    noise_threshold=noise_threshold,
+                    baseline0=baseline0,
+                    min_peak_width=min_peak_width,
+                    min_amplitude=min_amplitude,
+                    noise=noise,
+                    extra_loops=extra_loops,
+                    max_iterations=max_iterations,
+                )
+                fitted_parameters.append(parameters)
+            except:
+                warn(f"range {range} skipped.")
+                continue
 
         self.deconvolution_parameters = []
         for parameter in zip(*fitted_parameters):
             self.deconvolution_parameters.append(np.concatenate(parameter))
 
-        self.peaks = [
+        self.deconvoluted_peaks = [
             {"center": i, "amplitude": j, "width": k, "shape": l, "baselevel": m}
             for _, (i, j, k, l, m) in enumerate(zip(*self.deconvolution_parameters))
         ]
@@ -381,6 +385,8 @@ class H2O(RamanProcessing):
 
     def olivineExtract(self, cutoff=1400, peak_prominence=20, smooth=1e-6, **kwargs):
 
+        
+
         defaultBir = np.array(
             [
                 [100, 270],
@@ -478,7 +484,7 @@ class H2O(RamanProcessing):
 
 class olivine(H2O):
 
-    birs = np.array([[100, 230], [370, 380], [470, 515], [680, 740], [1020, 4000]])
+    birs = np.array([[100, 185],[260,272], [370, 380], [470, 515], [660, 700], [1100, 4000]])
 
     def __init__(self, x, intensity):
 
