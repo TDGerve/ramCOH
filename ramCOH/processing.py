@@ -5,6 +5,8 @@ from scipy import signal
 from scipy.optimize import least_squares
 from itertools import compress
 from csaps import csaps
+from . import curves as c
+from . import curve_fitting as cf
 
 
 class RamanProcessing:
@@ -41,7 +43,7 @@ class RamanProcessing:
         self.smoothing = True
         self.spectrumSelect = "smooth"
 
-    def baselineCorrect(self, birs, smooth_factor=1, **kwargs):
+    def baselineCorrect(self, baseline_regions, smooth_factor=1, **kwargs):
         """
         Baseline correction with fitted natural smoothing splines from csaps
 
@@ -51,10 +53,13 @@ class RamanProcessing:
         y = kwargs.get("y", self.spectrumSelect)
         spectrum = self.intensities[y]
 
+        if (hasattr(self, "birs")) & (baseline_regions is None):
+            baseline_regions = self.birs
+
         if self.norm:
             warn("run normalisation again to normalise baseline corrected spectrum")
 
-        xbir, ybir = f._extractBIR(self.x, spectrum, birs)
+        xbir, ybir = f._extractBIR(self.x, spectrum, baseline_regions)
 
         max_difference = ybir.max() - ybir.min()
         smooth = 2e-9 * max_difference * smooth_factor
@@ -68,9 +73,6 @@ class RamanProcessing:
         self.spectrumSelect = "BC"
 
     def calculate_noise(self, baseline_regions=None, smooth_factor=1e-5):
-
-        if not hasattr(self, "baseline"):
-            raise NameError("baseline not found, run baseline correction first")
 
         if (hasattr(self, "birs")) & (baseline_regions is None):
             baseline_regions = self.birs
@@ -95,11 +97,11 @@ class RamanProcessing:
         spectrum = self.intensities[y]
         self.peaks = {}
         self.curve = curve
-        curveDict = {"GL": f.GaussLorentz, "G": f.Gaussian, "L": f.Lorentzian}
+        curveDict = {"GL": c.GaussLorentz, "G": c.Gaussian, "L": c.Lorentzian}
 
         residuals = lambda params, x, spectrum: curveDict[curve](x, *params) - spectrum
 
-        amplitudes, centers, widths = f._find_peak_parameters(
+        amplitudes, centers, widths = cf._find_peak_parameters(
             x=self.x, y=spectrum, prominence=peak_prominence
         )
 
@@ -111,8 +113,8 @@ class RamanProcessing:
         for i, (amplitude, center, width) in enumerate(
             zip(amplitudes, centers, widths)
         ):
-            x_range = f._get_peakFit_ranges(center, width, fit_window)
-            xtrim, ytrim = f._trimxy_ranges(self.x, spectrum, x_range)
+            x_range = cf._get_peakFit_ranges(center, width, fit_window)
+            xtrim, ytrim = cf._trimxy_ranges(self.x, spectrum, x_range)
             # trimBool = (self.x > (centers[i] - widths[i] * fit_window)) & (
             #     self.x < (centers[i] + widths[i] * fit_window)
             # )
@@ -144,14 +146,14 @@ class RamanProcessing:
     def deconvolve(
         self,
         peak_prominence=3,
-        fit_window=4,
         noise_threshold=1.8,
+        threshold_scale=0.1,
         baseline0=True,
-        min_peak_width=4,
         min_amplitude=8,
+        min_peak_width=6,
+        fit_window=4,
         noise=None,
-        max_iterations=10,
-        extra_loops=0,
+        max_iterations=5,
         **kwargs,
     ):
 
@@ -159,26 +161,42 @@ class RamanProcessing:
         spectrum = self.intensities[y]
         x = self.x
 
-        _, centers, widths = f._find_peak_parameters(
+        if "cutoff" in kwargs:
+            cutoff = kwargs.get("cutoff")
+            spectrum = spectrum[x < cutoff]
+            x = x[x < cutoff]
+
+        _, centers, widths = cf._find_peak_parameters(
             x=x, y=spectrum, prominence=peak_prominence
         )
-        ranges = f._get_peakFit_ranges(
+        ranges = cf._get_peakFit_ranges(
             centers=centers, half_widths=widths, fit_window=fit_window
+        )
+
+        # Scale the noise threshold based on max y
+        threshold_scaler = (
+            lambda y: (
+                (y / spectrum.max() * 2 * threshold_scale) + (1 - threshold_scale)
+            )
+            * noise_threshold
         )
 
         fitted_parameters = []
         for range in ranges:
             xtrim, ytrim = f._trimxy_ranges(x, spectrum, range)
+            noise_threshold_local = threshold_scaler(ytrim.max())
+            print(
+                f"max y: {ytrim.max()}, range {range}, threshold: {noise_threshold_local}"
+            )
             try:
                 parameters, *_ = f.deconvolve_signal(
                     x=xtrim,
                     y=ytrim,
-                    noise_threshold=noise_threshold,
+                    noise_threshold=noise_threshold_local,
                     baseline0=baseline0,
                     min_peak_width=min_peak_width,
                     min_amplitude=min_amplitude,
                     noise=noise,
-                    extra_loops=extra_loops,
                     max_iterations=max_iterations,
                 )
                 fitted_parameters.append(parameters)
@@ -210,27 +228,28 @@ class neon(RamanProcessing):
     )
 
     def deconvolve(
+        self,
         peak_prominence=3,
-        fit_window=4,
         noise_threshold=1.8,
+        threshold_scale=0.1,
         baseline0=True,
-        min_peak_width=0.5,
         min_amplitude=8,
+        min_peak_width=8,
+        fit_window=6,
         noise=None,
-        max_iterations=3,
-        extra_loops=0,
+        max_iterations=5,
         **kwargs,
     ):
         return super().deconvolve(
-            peak_prominence,
-            fit_window,
-            noise_threshold,
-            baseline0,
-            min_peak_width,
-            min_amplitude,
-            noise,
-            max_iterations,
-            extra_loops,
+            peak_prominence=peak_prominence,
+            noise_threshold=noise_threshold,
+            threshold_scale=threshold_scale,
+            baseline0=baseline0,
+            min_amplitude=min_amplitude,
+            min_peak_width=min_peak_width,
+            fit_window=fit_window,
+            noise=noise,
+            max_iterations=max_iterations,
             **kwargs,
         )
 
@@ -323,7 +342,7 @@ class CO2(RamanProcessing):
         self.diad = {}
 
         # fit parameters for diad
-        self.diad["fit_params1"], self.diad["fit_params2"] = f.diad(
+        self.diad["fit_params1"], self.diad["fit_params2"] = cf.diad(
             x=self.x,
             intensities=spectrum,
             peak_prominence=peak_prominence,
@@ -333,11 +352,11 @@ class CO2(RamanProcessing):
         # diad curves
         self.diad["peak1"] = {
             "x": self.diad["fit_params1"]["x"],
-            "y": f.GaussLorentz(**self.diad["fit_params1"]),
+            "y": c.GaussLorentz(**self.diad["fit_params1"]),
         }
         self.diad["peak2"] = {
             "x": self.diad["fit_params2"]["x"],
-            "y": f.GaussLorentz(**self.diad["fit_params2"]),
+            "y": c.GaussLorentz(**self.diad["fit_params2"]),
         }
         del self.diad["fit_params1"]["x"]
         del self.diad["fit_params2"]["x"]
@@ -348,6 +367,9 @@ class CO2(RamanProcessing):
 
 
 class H2O(RamanProcessing):
+
+    birs = np.array([[20, 150], [640, 655], [800, 810], [1220, 2800], [3850, 4000]])
+
     def __init__(self, x, intensity):
 
         super().__init__(x, intensity)
@@ -410,20 +432,8 @@ class H2O(RamanProcessing):
 
     def olivineExtract(self, cutoff=1400, peak_prominence=20, smooth=1e-6, **kwargs):
 
-        defaultBir = np.array(
-            [
-                [100, 270],
-                [360, 380],
-                [460, 515],
-                [555, 560],
-                [660, 700],
-                [900, 910],
-                [930, 940],
-                [990, 4000],
-            ]
-        )
 
-        birs = kwargs.setdefault("birs", defaultBir)
+        birs = kwargs.setdefault("birs", olivine.birs)
         y = kwargs.get("y", self.spectrumSelect)
         spectrum = self.intensities[y]
 
@@ -442,7 +452,7 @@ class H2O(RamanProcessing):
         x = self.x[self.x < cutoff]
 
         # Get initial guesses for olivine peaks
-        amplitudes, centers, widths = f._find_peak_parameters(
+        amplitudes, centers, widths = cf._find_peak_parameters(
             self.x, olivine, prominence=peak_prominence / 100 * olivine.max()
         )
 
@@ -470,7 +480,7 @@ class H2O(RamanProcessing):
 
             values = params.reshape((5, peakAmount))
 
-            return f.sum_GaussLorentz(x, *values)
+            return c.sum_GaussLorentz(x, *values)
 
         # Fit peaks
         residuals = (
@@ -514,3 +524,27 @@ class olivine(H2O):
     def __init__(self, x, intensity):
 
         super().__init__(x, intensity)
+
+    def deconvolve(
+        self,
+        peak_prominence=4,
+        noise_threshold=1.6,
+        threshold_scale=0.2,
+        min_amplitude=4,
+        min_peak_width=6,
+        fit_window=4,
+        max_iterations=5,
+        cutoff=1400,
+        **kwargs,
+    ):
+        super().deconvolve(
+            min_peak_width=min_peak_width,
+            peak_prominence=peak_prominence,
+            noise_threshold=noise_threshold,
+            threshold_scale=threshold_scale,
+            min_amplitude=min_amplitude,
+            fit_window=fit_window,
+            max_iterations=max_iterations,
+            cutoff=cutoff,
+            **kwargs,
+        )
