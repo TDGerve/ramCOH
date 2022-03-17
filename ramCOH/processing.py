@@ -147,12 +147,12 @@ class RamanProcessing:
         fit_window=4,
         noise_threshold=1.8,
         baseline0=True,
-        min_peak_width=6,
-        min_amplitude=2,
+        min_peak_width=4,
+        min_amplitude=8,
         noise=None,
         max_iterations=10,
         extra_loops=0,
-        **kwargs
+        **kwargs,
     ):
 
         y = kwargs.get("y", self.spectrumSelect)
@@ -208,6 +208,31 @@ class neon(RamanProcessing):
             [1450, 1464],
         ]
     )
+
+    def deconvolve(
+        peak_prominence=3,
+        fit_window=4,
+        noise_threshold=1.8,
+        baseline0=True,
+        min_peak_width=0.5,
+        min_amplitude=8,
+        noise=None,
+        max_iterations=3,
+        extra_loops=0,
+        **kwargs,
+    ):
+        return super().deconvolve(
+            peak_prominence,
+            fit_window,
+            noise_threshold,
+            baseline0,
+            min_peak_width,
+            min_amplitude,
+            noise,
+            max_iterations,
+            extra_loops,
+            **kwargs,
+        )
 
     def neonCorrection(
         self, left_nm=565.666, right_nm=574.83, laser=532.18, search_window=6
@@ -385,8 +410,6 @@ class H2O(RamanProcessing):
 
     def olivineExtract(self, cutoff=1400, peak_prominence=20, smooth=1e-6, **kwargs):
 
-        
-
         defaultBir = np.array(
             [
                 [100, 270],
@@ -484,7 +507,9 @@ class H2O(RamanProcessing):
 
 class olivine(H2O):
 
-    birs = np.array([[100, 185],[260,272], [370, 380], [470, 515], [660, 700], [1100, 4000]])
+    birs = np.array(
+        [[100, 185], [260, 272], [370, 380], [470, 515], [660, 700], [1100, 4000]]
+    )
 
     def __init__(self, x, intensity):
 

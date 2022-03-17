@@ -527,7 +527,7 @@ def deconvolve_signal(
     if noise is None:
         noise, _ = _calculate_noise(x=x, y=y)
 
-    # Set peak prominence to 8 times noise levels
+    # Set peak prominence to 4 times noise levels
     prominence = ((noise * 4) / y.max()) * 100
 
     # Boundary conditions
