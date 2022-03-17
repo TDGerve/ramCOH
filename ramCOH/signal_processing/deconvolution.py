@@ -147,7 +147,7 @@ def deconvolve_signal(
             warnings.warn(f"max iterations reached: {max_iterations}")
             break
         # Stop if noise has reduced less than 5%
-        if (fit_noise_old * 0.95) < fit_noise:
+        if (fit_noise_old * 0.90) < fit_noise:
             warnings.warn("Noise not significantly reduced compared to last iteration, using previous result")
             # Revert back to previous fitted values
             fitParams = fitParams_old.copy()
