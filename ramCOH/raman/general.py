@@ -1,12 +1,13 @@
-from . import functions as f
+from ..signal_processing import functions as f
 import numpy as np
 from warnings import warn
 from scipy import signal
 from scipy.optimize import least_squares
 from itertools import compress
 from csaps import csaps
-from . import curves as c
-from . import curve_fitting as cf
+from ..signal_processing import curves as c
+from ..signal_processing import curve_fitting as cf
+from ..signal_processing import deconvolution as d
 
 
 class RamanProcessing:
@@ -183,13 +184,13 @@ class RamanProcessing:
 
         fitted_parameters = []
         for range in ranges:
-            xtrim, ytrim = f._trimxy_ranges(x, spectrum, range)
+            xtrim, ytrim = cf._trimxy_ranges(x, spectrum, range)
             noise_threshold_local = threshold_scaler(ytrim.max())
             print(
                 f"max y: {ytrim.max()}, range {range}, threshold: {noise_threshold_local}"
             )
             try:
-                parameters, *_ = f.deconvolve_signal(
+                parameters, *_ = d.deconvolve_signal(
                     x=xtrim,
                     y=ytrim,
                     noise_threshold=noise_threshold_local,
@@ -334,217 +335,10 @@ class neon(RamanProcessing):
             print("calibration lines not found in spectrum")
 
 
-class CO2(RamanProcessing):
-    def FermiDiad(self, peak_prominence=40, fit_window=8, **kwargs):
-
-        y = kwargs.get("y", self.spectrumSelect)
-        spectrum = self.intensities[y]
-        self.diad = {}
-
-        # fit parameters for diad
-        self.diad["fit_params1"], self.diad["fit_params2"] = cf.diad(
-            x=self.x,
-            intensities=spectrum,
-            peak_prominence=peak_prominence,
-            fit_window=fit_window,
-        )
-
-        # diad curves
-        self.diad["peak1"] = {
-            "x": self.diad["fit_params1"]["x"],
-            "y": c.GaussLorentz(**self.diad["fit_params1"]),
-        }
-        self.diad["peak2"] = {
-            "x": self.diad["fit_params2"]["x"],
-            "y": c.GaussLorentz(**self.diad["fit_params2"]),
-        }
-        del self.diad["fit_params1"]["x"]
-        del self.diad["fit_params2"]["x"]
-        # diad split
-        self.diad["split"] = abs(
-            self.diad["fit_params1"]["center"] - self.diad["fit_params2"]["center"]
-        )
 
 
-class H2O(RamanProcessing):
-
-    birs = np.array([[20, 150], [640, 655], [800, 810], [1220, 2800], [3850, 4000]])
-
-    def __init__(self, x, intensity):
-
-        super().__init__(x, intensity)
-        self.LC = False
-        self.OlC = False
-
-    def longCorrect(self, T_C=25.0, laser=532.18, normalisation="area", **kwargs):
-
-        y = kwargs.get("y", self.spectrumSelect)
-        spectrum = self.intensities[y]
-
-        if self.BC:
-            warn(
-                "Run baseline correction again to to subtract baseline from Long corrected spectrum"
-            )
-
-        self.intensities["long"] = f.long_correction(
-            self.x, spectrum, T_C, laser, normalisation
-        )
-        # self.LC = 1
-        self.spectrumSelect = "long"
-        self.LC = True
-
-    def olivineInterpolate(
-        self, ol=[0, 780, 902, 905, 932, 938, 980, 4005], smooth=1e-6, **kwargs
-    ):
-
-        y = kwargs.get("y", self.spectrumSelect)
-        spectrum = self.intensities[y]
-
-        # olivine baseline interpolatin regions
-        if isinstance(ol, list):
-            olBirs = np.array(ol).reshape((len(ol) // 2, 2))
-        xbir, ybir = f._extractBIR(self.x, spectrum, olBirs)
-
-        # Boolean array for glass only regions; no olivine peaks
-        for i, region in enumerate(olBirs):
-            if i == 0:
-                glassIndex = (self.x > region[0]) & (self.x < region[1])
-            else:
-                glassIndex = glassIndex | ((self.x > region[0]) & (self.x < region[1]))
-        # regions with olivine peaks
-        olIndex = ~glassIndex
-
-        # Fit spline to olivine free regions of the spectrum
-        spline = csaps(xbir, ybir, smooth=smooth)
-        self.spectrumSpline = spline(self.x)
-        # Olivine residual
-        self.olivine = spectrum - self.spectrumSpline
-
-        # only replace interpolated parts of the spectrum
-        self.intensities["olC"] = spectrum.copy()
-        self.intensities["olC"][olIndex] = self.spectrumSpline[olIndex]
-
-        # Area of olivine spectrum
-        self.olivineArea = np.trapz(self.olivine[olIndex], self.x[olIndex])
-
-        self.spectrumSelect = "olC"
-        self.olC = True
-
-    def olivineExtract(self, cutoff=1400, peak_prominence=20, smooth=1e-6, **kwargs):
 
 
-        birs = kwargs.setdefault("birs", olivine.birs)
-        y = kwargs.get("y", self.spectrumSelect)
-        spectrum = self.intensities[y]
-
-        # regions without olivine peaks
-        if isinstance(birs, list):
-            birs = np.array(birs).reshape((len(birs) // 2, 2))
-        xbir, ybir = f._extractBIR(self.x, spectrum, birs)
-
-        # fit spline to olivine free regions of the spectrum
-        spline = csaps(xbir, ybir, smooth=smooth)
-        spectrumSpline = spline(self.x)
-        self.olivine = spectrum - spectrumSpline
-
-        # Remove part of the spectrum with no olivine peaks
-        olivine = self.olivine[self.x < cutoff]
-        x = self.x[self.x < cutoff]
-
-        # Get initial guesses for olivine peaks
-        amplitudes, centers, widths = cf._find_peak_parameters(
-            self.x, olivine, prominence=peak_prominence / 100 * olivine.max()
-        )
-
-        peakAmount = len(centers)
-
-        # baselevels = [0] * peakAmount
-        shapes = [0.5] * peakAmount
-
-        init_values = np.concatenate([centers, amplitudes, widths, shapes])
-
-        # Set boundary conditions
-        leftBoundSimple = [-np.inf, 0, 0, 0]
-        leftBound = np.repeat(leftBoundSimple, peakAmount)
-
-        rightBoundSimple = [np.inf, np.inf, np.inf, 1]
-        rightBound = np.repeat(rightBoundSimple, peakAmount)
-
-        bounds = (leftBound, rightBound)
-
-        def sumGaussians_reshaped(x, params, peakAmount, baselevel=0):
-            "Reshape parameters to use sum_GaussLorentz in least-squares regression"
-
-            baselevels = np.array([baselevel] * peakAmount)
-            params = np.concatenate((params, baselevels))
-
-            values = params.reshape((5, peakAmount))
-
-            return c.sum_GaussLorentz(x, *values)
-
-        # Fit peaks
-        residuals = (
-            lambda params, x, peakAmount, spectrum: sumGaussians_reshaped(
-                x, params, peakAmount, baselevel=0
-            )
-            - spectrum
-        )
-
-        LSfit = least_squares(
-            fun=residuals, x0=init_values, bounds=bounds, args=(x, peakAmount, olivine)
-        )
-
-        fitParams = LSfit.x.reshape((4, peakAmount))
-
-        self.olivinePeaks = [
-            {"center": i, "amplitude": j, "width": k, "shape": l}
-            for _, (i, j, k, l) in enumerate(zip(*fitParams))
-        ]
-
-    def SiH2Oareas(self, **kwargs):
-
-        y = kwargs.get("y", self.spectrumSelect)
-        spectrum = self.intensities[y]
-        self.SiArea = np.trapz(
-            spectrum[(self.x > 150) & (self.x < 1400)],
-            self.x[(self.x > 150) & (self.x < 1400)],
-        )
-        self.H2Oarea = np.trapz(
-            spectrum[(self.x > 2800) & (self.x < 3900)],
-            self.x[(self.x > 2800) & (self.x < 3900)],
-        )
 
 
-class olivine(H2O):
 
-    birs = np.array(
-        [[100, 185], [260, 272], [370, 380], [470, 515], [660, 700], [1100, 4000]]
-    )
-
-    def __init__(self, x, intensity):
-
-        super().__init__(x, intensity)
-
-    def deconvolve(
-        self,
-        peak_prominence=4,
-        noise_threshold=1.6,
-        threshold_scale=0.2,
-        min_amplitude=4,
-        min_peak_width=6,
-        fit_window=4,
-        max_iterations=5,
-        cutoff=1400,
-        **kwargs,
-    ):
-        super().deconvolve(
-            min_peak_width=min_peak_width,
-            peak_prominence=peak_prominence,
-            noise_threshold=noise_threshold,
-            threshold_scale=threshold_scale,
-            min_amplitude=min_amplitude,
-            fit_window=fit_window,
-            max_iterations=max_iterations,
-            cutoff=cutoff,
-            **kwargs,
-        )

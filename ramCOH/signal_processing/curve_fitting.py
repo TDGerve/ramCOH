@@ -1,11 +1,9 @@
-import pandas as pd
 import numpy as np
 import warnings
 from scipy import signal
-from importlib import resources
-import sklearn.metrics as skm
 import scipy.optimize as opt
 import csaps as cs
+from . import curves as c
 
 def _merge_overlapping_ranges(ranges):
     """
@@ -155,7 +153,7 @@ def _trim_peakFit_ranges(x, y, centers, half_widths, fit_window=4, merge_overlap
     )
 
     return _trimxy_ranges(x, y, ranges)
-    
+
 
 def _find_peak_parameters(x, y, prominence, **kwargs):
     """
@@ -207,7 +205,7 @@ def diad(x, intensities, peak_prominence=40, fit_window=8, curve="GL"):
     # Fit curves to the two highest peaks in the 1250 - 1450cm-1 window
 
     # set up the cost function
-    curveDict = {"GL": GaussLorentz, "G": Gaussian, "L": Lorentzian}
+    curveDict = {"GL": c.GaussLorentz, "G": c.Gaussian, "L": c.Lorentzian}
     residuals = lambda params, x, spectrum: curveDict[curve](x, *params) - spectrum
 
     # check if the diad is within range of the spectrum
