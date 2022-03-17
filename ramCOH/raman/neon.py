@@ -18,15 +18,15 @@ class neon(ram.RamanProcessing):
 
     def deconvolve(
         self,
-        peak_prominence=3,
-        noise_threshold=1.8,
-        threshold_scale=0.1,
+        peak_prominence=2,
+        noise_threshold=10,
+        threshold_scale=0.3,
         baseline0=True,
         min_amplitude=8,
         min_peak_width=0.5,
-        fit_window=6,
+        fit_window=4,
         noise=None,
-        max_iterations=5,
+        max_iterations=3,
         **kwargs,
     ):
         return super().deconvolve(
