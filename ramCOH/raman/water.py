@@ -18,7 +18,7 @@ class H2O(ram.RamanProcessing):
         self.LC = False
         self.OlC = False
 
-    def longCorrect(self, T_C=25.0, laser=532.18, normalisation="area", **kwargs):
+    def longCorrect(self, T_C=23.0, laser=532.18, normalisation="area", **kwargs):
 
         y = kwargs.get("y", self.spectrumSelect)
         spectrum = self.intensities[y]
