@@ -7,8 +7,9 @@ from ..signal_processing import curves as c
 import csaps as cs
 import scipy.optimize as opt
 
-class H2O(ram.RamanProcessing):
 
+class H2O(ram.RamanProcessing):
+    # Baseline regions
     birs = np.array([[20, 150], [640, 655], [800, 810], [1220, 2800], [3850, 4000]])
 
     def __init__(self, x, intensity):
@@ -72,7 +73,6 @@ class H2O(ram.RamanProcessing):
         self.olC = True
 
     def olivineExtract(self, cutoff=1400, peak_prominence=20, smooth=1e-6, **kwargs):
-
 
         birs = kwargs.setdefault("birs", olivine.birs)
         y = kwargs.get("y", self.spectrumSelect)

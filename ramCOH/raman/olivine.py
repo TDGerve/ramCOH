@@ -1,8 +1,9 @@
 from . import water as h
 import numpy as np
 
-class olivine(h.H2O):
 
+class olivine(h.H2O):
+    # Baseline regions
     birs = np.array(
         [[100, 185], [260, 272], [370, 380], [470, 515], [660, 700], [1100, 4000]]
     )
