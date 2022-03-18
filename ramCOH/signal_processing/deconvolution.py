@@ -142,17 +142,17 @@ def deconvolve_signal(
         fit_noise = (y - c.sum_GaussLorentz(x, *fitParams)).std()
 
         iterations += 1
-        # Stop is max iterations has been reached
+        # Stop is max iterations have been reached
         if iterations >= max_iterations:
             warnings.warn(f"max iterations reached: {max_iterations}")
             break
-        # Stop if noise has increased from previous iteration
-        if fit_noise_old < fit_noise:
-            warnings.warn("Noise increased from last iteration, using previous result")
+        # Stop if noise has reduced less than 5%
+        if (fit_noise_old * 0.90) < fit_noise:
+            warnings.warn("Noise improved by <10%, using previous result")
             # Revert back to previous fitted values
             fitParams = fitParams_old.copy()
             break
-        # Stop if noise on the fit is below the noise threshold
+        # Stop if noise on the fit is below the set threshold
         if fit_noise < (noise * noise_threshold):
             break
 
