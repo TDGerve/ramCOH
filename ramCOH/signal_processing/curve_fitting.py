@@ -194,7 +194,7 @@ def _find_peak_parameters(x, y, prominence, **kwargs):
 
     return amplitudes, centers, widths
 
-def diad(x, intensities, peak_prominence=40, fit_window=8, curve="GL"):
+def diad(x, y, peak_prominence=40, fit_window=8, curve="GL"):
     """
     Paramters
     ---------
@@ -212,12 +212,12 @@ def diad(x, intensities, peak_prominence=40, fit_window=8, curve="GL"):
     if (x.min() > 1250) | (x.max() < 1450):
         raise RuntimeError("spectrum not within 1250 - 1450cm-1")
 
-    intensities = intensities[(x > 1250) & (x < 1450)]
+    y = y[(x > 1250) & (x < 1450)]
     x = x[(x > 1250) & (x < 1450)]
 
     # find initial guesses for peak fitting
     amplitudes, centers, widths = _find_peak_parameters(
-        x=x, y=intensities, prominence=peak_prominence
+        x=x, y=y, prominence=peak_prominence
     )
 
     if amplitudes.shape[0] < 2:
@@ -235,11 +235,12 @@ def diad(x, intensities, peak_prominence=40, fit_window=8, curve="GL"):
     # baselevel, should be 0 for baseline corrected spectra
     baselevel = 0
 
-    # Set bounds for fitting algorithm
+    # Set bounds for fitting algorithm (amplitude, center, width, baselevel, shape)
+    x_range = x.max() - x.min()
     if curve == "GL":
         bounds = (
-            [-np.inf, -np.inf, -np.inf, -np.inf, 0],
-            [np.inf, np.inf, np.inf, np.inf, 1],
+            [0, x.min(), 0, -np.inf, 0],
+            [y.max() * 2, x.max(), x_range, y.max(), 1],
         )
     else:
         bounds = (-np.inf, np.inf)
@@ -255,7 +256,7 @@ def diad(x, intensities, peak_prominence=40, fit_window=8, curve="GL"):
             init_values = np.append(init_values, shape)
 
         x_fit, y_fit = _trim_peakFit_ranges(
-            x, intensities, center, width, fit_window=fit_window
+            x, y, center, width, fit_window=fit_window
         )
 
         params = opt.least_squares(

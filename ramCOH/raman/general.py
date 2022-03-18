@@ -2,7 +2,7 @@ from ..signal_processing import functions as f
 import numpy as np
 from warnings import warn
 from scipy import signal
-from scipy.optimize import least_squares
+import scipy.optimize as opt
 from csaps import csaps
 from ..signal_processing import curves as c
 from ..signal_processing import curve_fitting as cf
@@ -130,7 +130,7 @@ class RamanProcessing:
                     [np.inf, np.inf, np.inf, np.inf, 1],
                 )
 
-            fitParams = least_squares(
+            fitParams = opt.least_squares(
                 fun=residuals,
                 x0=init_values,
                 bounds=bounds,
