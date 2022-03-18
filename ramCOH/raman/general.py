@@ -44,7 +44,7 @@ class RamanProcessing:
         self.smoothing = True
         self.spectrumSelect = "smooth"
 
-    def baselineCorrect(self, baseline_regions, smooth_factor=1, **kwargs):
+    def baselineCorrect(self, baseline_regions=None, smooth_factor=1, **kwargs):
         """
         Baseline correction with fitted natural smoothing splines from csaps
 

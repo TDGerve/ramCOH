@@ -250,7 +250,7 @@ def diad(x, intensities, peak_prominence=40, fit_window=8, curve="GL"):
     # Fit curves to the two peaks
     for amplitude, center, width in zip(amplitudes, centers, widths):
         # Set initial guesses
-        init_values = np.array(amplitude, center, width, baselevel)
+        init_values = np.array([amplitude, center, width, baselevel])
         if curve == "GL":
             init_values = np.append(init_values, shape)
 
