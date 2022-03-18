@@ -1,4 +1,3 @@
-from ..signal_processing import functions as f
 import numpy as np
 from warnings import warn
 from scipy import signal
@@ -7,6 +6,7 @@ from csaps import csaps
 from ..signal_processing import curves as c
 from ..signal_processing import curve_fitting as cf
 from ..signal_processing import deconvolution as d
+from ..signal_processing import functions as f
 
 
 class RamanProcessing:
