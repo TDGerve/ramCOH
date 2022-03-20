@@ -77,11 +77,13 @@ class H2O(ram.RamanProcessing):
     ):
 
         # Set default values
-        default_birs = np.array([[0, 250], [460,550], [650, 720], [1035, 4000]]) #[900, 910], 
+        default_birs = np.array(
+            [[0, 250], [460, 550], [650, 720], [1035, 4000]]
+        )  # [900, 910],
         birs = kwargs.get("birs", default_birs)
         fit_window = kwargs.get("fit_window", 8)
-        noise_threshold = kwargs.get("noise_threshold", 2)
-        threshold_scale = kwargs.get("threshold_scale", 0.2)
+        noise_threshold = kwargs.get("noise_threshold", 1.5)
+        threshold_scale = kwargs.get("threshold_scale", 0.)
         cutoff_high = 1400
         cutoff_low = 700
 
@@ -122,19 +124,23 @@ class H2O(ram.RamanProcessing):
 
         self.olivine_main_peaks = olivine_fit.deconvolution_parameters
 
-        interference_max = c.sum_GaussLorentz(
-            self.x, *self.olivine_main_peaks
-        ).max()
+        interference_max = c.sum_GaussLorentz(self.x, *self.olivine_main_peaks).max()
         # Deconvolute host crystal spectrum
         olivine = ram.olivine(olivine_x, olivine_y)
         olivine.baselineCorrect()
         olivine.calculate_noise()
-        olivine.deconvolve(noise_threshold=noise_threshold / 2, min_amplitude=2)
+        olivine.deconvolve(noise_threshold=noise_threshold, min_amplitude=2)
+
+        main_peaks_interference = np.sort(olivine_fit.deconvolution_parameters[1])[-2:]
+        main_peaks_host = np.sort(olivine.deconvolution_parameters[1])[-2:]
+        self.olivine_scale = (main_peaks_host / main_peaks_interference).mean()
 
         self.olivine = c.sum_GaussLorentz(self.x, *olivine.deconvolution_parameters)
         # Scale host crystal specutrum to the interference
-        self.olivine_scale = self.olivine.max() / interference_max
-        self.intensities["olivine_corrected"] = spectrum - (self.olivine / self.olivine_scale)
+        # self.olivine_scale = self.olivine.max() / interference_max
+        self.intensities["olivine_corrected"] = spectrum - (
+            self.olivine / self.olivine_scale
+        )
 
         self.olivinePeaks = [
             {"center": i, "amplitude": j, "width": k, "shape": l, "baselevel": m}
