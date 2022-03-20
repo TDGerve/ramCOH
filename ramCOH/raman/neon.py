@@ -3,8 +3,9 @@ import numpy as np
 from ..signal_processing import functions as f
 import itertools as it
 
-class neon(ram.RamanProcessing):
 
+class neon(ram.RamanProcessing):
+    # Baseline regions
     birs = np.array(
         [
             [1027, 1108],
@@ -121,4 +122,3 @@ class neon(ram.RamanProcessing):
 
         else:
             print("calibration lines not found in spectrum")
-
