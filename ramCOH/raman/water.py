@@ -16,7 +16,7 @@ class H2O(ram.RamanProcessing):
 
         super().__init__(x, intensity)
         self.LC = False
-        self.OlC = False
+        self.interpolated = False
 
     def longCorrect(self, T_C=23.0, laser=532.18, normalisation="area", **kwargs):
 
@@ -35,52 +35,46 @@ class H2O(ram.RamanProcessing):
         self.spectrumSelect = "long"
         self.LC = True
 
-    def olivineInterpolate(
-        self, ol=[0, 780, 902, 905, 932, 938, 980, 4005], smooth=1e-6, **kwargs
+    def interpolate(
+        self, interpolate, smooth=1e-6, **kwargs
     ):
-
+        birs = kwargs(interpolate, ram.olivine.birs)
         y = kwargs.get("y", self.spectrumSelect)
         spectrum = self.intensities[y]
 
-        # olivine baseline interpolatin regions
-        if isinstance(ol, list):
-            olBirs = np.array(ol).reshape((len(ol) // 2, 2))
-        xbir, ybir = f._extractBIR(self.x, spectrum, olBirs)
+        xbir, ybir = f._extractBIR(self.x, spectrum, birs)
 
         # Boolean array for glass only regions; no olivine peaks
-        for i, region in enumerate(olBirs):
+        for i, region in enumerate(birs):
             if i == 0:
                 glassIndex = (self.x > region[0]) & (self.x < region[1])
             else:
                 glassIndex = glassIndex | ((self.x > region[0]) & (self.x < region[1]))
         # regions with olivine peaks
-        olIndex = ~glassIndex
+        interpolate_index = ~glassIndex
 
         # Fit spline to olivine free regions of the spectrum
         spline = cs.csaps(xbir, ybir, smooth=smooth)
         self.spectrumSpline = spline(self.x)
-        # Olivine residual
-        self.olivine = spectrum - self.spectrumSpline
+        # Interpolated residual
+        self.interpolated = spectrum - self.spectrumSpline
 
         # only replace interpolated parts of the spectrum
-        self.intensities["olC"] = spectrum.copy()
-        self.intensities["olC"][olIndex] = self.spectrumSpline[olIndex]
+        self.intensities["interpolated"] = spectrum.copy()
+        self.intensities["interpolated"][interpolate_index] = self.spectrumSpline[interpolate_index]
 
         # Area of olivine spectrum
-        self.olivineArea = np.trapz(self.olivine[olIndex], self.x[olIndex])
+        self.olivineArea = np.trapz(self.olivine[interpolate_index], self.x[interpolate_index])
 
-        self.spectrumSelect = "olC"
-        self.olC = True
+        self.spectrumSelect = "interpolated"
+        self.interplated = True
 
-    def olivineExtract(self, cutoff=1400, peak_prominence=20, smooth=1e-6, **kwargs):
+    def olivineExtract(self, cutoff=1400, peak_prominence=50, smooth=1e-6, **kwargs):
 
-        birs = kwargs.setdefault("birs", olivine.birs)
+        birs = kwargs.setdefault("birs", ram.olivine.birs)
         y = kwargs.get("y", self.spectrumSelect)
         spectrum = self.intensities[y]
 
-        # regions without olivine peaks
-        if isinstance(birs, list):
-            birs = np.array(birs).reshape((len(birs) // 2, 2))
         xbir, ybir = f._extractBIR(self.x, spectrum, birs)
 
         # fit spline to olivine free regions of the spectrum
@@ -94,7 +88,7 @@ class H2O(ram.RamanProcessing):
 
         # Get initial guesses for olivine peaks
         amplitudes, centers, widths = cf._find_peak_parameters(
-            self.x, olivine, prominence=peak_prominence / 100 * olivine.max()
+            x, olivine, prominence=peak_prominence / 100 * olivine.max()
         )
 
         peakAmount = len(centers)
@@ -104,11 +98,11 @@ class H2O(ram.RamanProcessing):
 
         init_values = np.concatenate([centers, amplitudes, widths, shapes])
 
-        # Set boundary conditions
-        leftBoundSimple = [-np.inf, 0, 0, 0]
-        leftBound = np.repeat(leftBoundSimple, peakAmount)
+        # Set boundary conditions: center, amplitude, width, shape
+        leftBoundSimple = [x.min(), 0, 0, 0]
+        rightBoundSimple = [x.max(), olivine.max() * 2, (x.max() - x.min()), 1]
 
-        rightBoundSimple = [np.inf, np.inf, np.inf, 1]
+        leftBound = np.repeat(leftBoundSimple, peakAmount)        
         rightBound = np.repeat(rightBoundSimple, peakAmount)
 
         bounds = (leftBound, rightBound)
