@@ -9,9 +9,9 @@ def deconvolve_signal(
     x,
     y,
     noise_threshold,
-    baseline0,
     min_peak_width,
     min_amplitude,
+    baseline0=True,
     noise=None,
     max_iterations=5,
 ):
@@ -21,15 +21,15 @@ def deconvolve_signal(
     x : array-like
         x
     y : array-like
-        x
-    prominence : float
-        prominence of peaks to be found. Passed to scipy.signal.find_peaks
+        y
     noise_threshold : float
         Fit is accepted when the standard deviation of the fit residuals fall below (noise on y) * noise_threshold
-    baseline0 : bool
-        fix baselevel of fitted curves to 0
     min_peak_width : int, float
         minimum width of fitted peaks (full width at half maximum) in x stepsize.
+    min_amplitude : int, float
+        minium amplitude of fitted peaks as a factor of noise on y.
+    baseline0 : bool
+        fix baselevel of fitted curves to 0
     noise : float, int (optional)
         Absolute noise on y
     max_iterations : int
@@ -49,8 +49,8 @@ def deconvolve_signal(
     if noise is None:
         noise, _ = f._calculate_noise(x=x, y=y)
 
-    # Set peak prominence to 4 times noise levels
-    prominence = ((noise * 4) / y.max()) * 100
+    # Set peak prominence to x times noise levels
+    prominence = ((noise * min_amplitude) / y.max()) * 100
 
     # Boundary conditions
     resolution = abs(np.diff(x).mean())
@@ -146,7 +146,7 @@ def deconvolve_signal(
         if iterations >= max_iterations:
             warnings.warn(f"max iterations reached: {max_iterations}")
             break
-        # Stop if noise has reduced less than 5%
+        # Stop if noise has reduced less than 10%
         if (fit_noise_old * 0.90) < fit_noise:
             warnings.warn("Noise improved by <10%, using previous result")
             # Revert back to previous fitted values
@@ -160,8 +160,8 @@ def deconvolve_signal(
         peakAmount += 1
         # Get initial guess for new peak
         # Y at the highest residual, or the set mimumum ampltude, whichever one is higher
-        amplitude = np.max((y[np.where(residue == residue.max())][0], min_amplitude))
-        center = x[np.where(residue == residue.max())][0]
+        amplitude = np.max((y[residue == residue.max()][0], min_amplitude))
+        center = x[residue == residue.max()][0]
         width = np.max((widths.mean(), min_width))
 
         amplitudes = np.append(amplitudes, amplitude)
