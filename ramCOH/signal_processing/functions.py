@@ -174,7 +174,7 @@ def _calculate_noise(x, y, smooth_factor=1):
     # Max range in y
     max_difference = y.max() - y.min()
     # Emperically found this is gives ok smoothing factors for most spectra
-    smooth = 2e-4 * max_difference * smooth_factor
+    smooth = 2e-6 * max_difference * smooth_factor
     # Fit spline
     spline = cs.csaps(x, y, smooth=smooth)
     # Standard deviation on the residuals of y and spline

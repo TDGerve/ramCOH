@@ -204,7 +204,7 @@ class RamanProcessing:
                 fitted_parameters.append(parameters)
             except:
                 warn(f"range {range} skipped.")
-                continue
+                
 
         self.deconvolution_parameters = []
         for parameter in zip(*fitted_parameters):
