@@ -17,8 +17,7 @@ class H2O(ram.RamanProcessing):
     def __init__(self, x, y):
 
         super().__init__(x, y)
-        self.long_correction = False
-        self.interpolated = False
+        self.processing.update({"long_corrected": False, "interpolated": False, "olivine_corrected": False})
 
     def longCorrect(self, T_C=23.0, normalisation="area", **kwargs):
 
@@ -27,16 +26,11 @@ class H2O(ram.RamanProcessing):
         y = kwargs.get("y", self.spectrumSelect)
         spectrum = getattr(self.signal, y)
 
-        if self.baseline_correction:
-            warn(
-                "Run baseline correction again to to subtract baseline from Long corrected spectrum"
-            )
-
         long_corrected = f.long_correction(self.x, spectrum, T_C, laser, normalisation)
         setattr(self.signal, "long_corrected", long_corrected)
         # self.LC = 1
         self.spectrumSelect = "long_corrected"
-        self.long_correction = True
+        self.processing["long_corrected"] = True
 
     def interpolate(self, interpolate=[760, 910], smooth=1e-6, **kwargs):
 
@@ -79,7 +73,7 @@ class H2O(ram.RamanProcessing):
         )
 
         self.spectrumSelect = "interpolated"
-        self.interplated = True
+        self.processing["interplated"] = True
 
     def extract_olivine(
         self, olivine_x, olivine_y, *, peak_prominence=6, smooth=1e-6, **kwargs
@@ -160,6 +154,7 @@ class H2O(ram.RamanProcessing):
         olivine_corrected = spectrum - (self.olivine / self.olivine_scale)
         setattr(self.signal, "olivine_corrected", olivine_corrected)
         self.spectrumSelect = "olivine_corrected"
+        self.processing["olivine_corrected"] = True
 
         self.olivinePeaks = [
             {"center": i, "amplitude": j, "width": k, "shape": l, "baselevel": m}

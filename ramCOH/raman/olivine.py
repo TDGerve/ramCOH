@@ -1,9 +1,9 @@
 from attr import has
-from . import water as h
+from . import general as ram
 import numpy as np
 
 
-class olivine(h.H2O):
+class olivine(ram.RamanProcessing):
     # Baseline regions
     birs = np.array(
         [
