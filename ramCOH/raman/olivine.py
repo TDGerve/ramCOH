@@ -16,9 +16,15 @@ class olivine(h.H2O):
         ]
     )
 
-    def __init__(self, x, intensity):
+    def __init__(self, x, y):
 
-        super().__init__(x, intensity)
+        super().__init__(x, y)
+
+    def baselineCorrect(self, baseline_regions=birs, smooth_factor=1e-4, **kwargs):
+
+        return super().baselineCorrect(
+            baseline_regions=baseline_regions, smooth_factor=smooth_factor, **kwargs
+        )
 
     def deconvolve(
         self,
@@ -32,8 +38,11 @@ class olivine(h.H2O):
         cutoff=1400,
         **kwargs,
     ):
+
         if hasattr(self, "noise"):
             noise = self.noise
+        else:
+            noise = None
 
         super().deconvolve(
             min_peak_width=min_peak_width,
@@ -42,6 +51,7 @@ class olivine(h.H2O):
             threshold_scale=threshold_scale,
             min_amplitude=min_amplitude,
             fit_window=fit_window,
+            noise=noise,
             max_iterations=max_iterations,
             cutoff=cutoff,
             **kwargs,
