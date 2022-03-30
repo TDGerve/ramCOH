@@ -16,9 +16,10 @@ class signal:
 
 
 class RamanProcessing:
-    def __init__(self, x, y):
+    def __init__(self, x, y, laser = 532.18):
         self.signal = signal(np.array(y)[np.argsort(x)])
         self.x = np.array(x)[np.argsort(x)]
+        self.laser = laser
         # flag to check if baseline correction has been used
         self.baseline_correction = False
         # flag to check if normalisation has been used
@@ -158,6 +159,7 @@ class RamanProcessing:
 
     def deconvolve(
         self,
+        *,
         peak_prominence=3,
         noise_threshold=1.8,
         threshold_scale=0.1,

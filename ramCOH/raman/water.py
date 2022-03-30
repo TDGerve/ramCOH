@@ -20,7 +20,9 @@ class H2O(ram.RamanProcessing):
         self.long_correction = False
         self.interpolated = False
 
-    def longCorrect(self, T_C=23.0, laser=532.18, normalisation="area", **kwargs):
+    def longCorrect(self, T_C=23.0, normalisation="area", **kwargs):
+
+        laser = kwargs.get("laser", self.laser)
 
         y = kwargs.get("y", self.spectrumSelect)
         spectrum = getattr(self.signal, y)
@@ -80,7 +82,7 @@ class H2O(ram.RamanProcessing):
         self.interplated = True
 
     def extract_olivine(
-        self, olivine_x, olivine_y, peak_prominence=6, smooth=1e-6, **kwargs
+        self, olivine_x, olivine_y, *, peak_prominence=6, smooth=1e-6, **kwargs
     ):
 
         # Set default values

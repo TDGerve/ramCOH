@@ -28,6 +28,7 @@ class olivine(h.H2O):
 
     def deconvolve(
         self,
+        *,
         peak_prominence=4,
         noise_threshold=1.6,
         threshold_scale=0.2,

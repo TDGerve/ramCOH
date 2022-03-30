@@ -17,8 +17,10 @@ class neon(ram.RamanProcessing):
         ]
     )
 
+
     def deconvolve(
         self,
+        *,
         peak_prominence=2,
         noise_threshold=10,
         threshold_scale=0.3,
@@ -44,8 +46,9 @@ class neon(ram.RamanProcessing):
         )
 
     def neonCorrection(
-        self, left_nm=565.666, right_nm=574.83, laser=532.18, search_window=6
+        self, left_nm=565.666, right_nm=574.83, search_window=6, **kwargs
     ):
+        laser = kwargs.get("laser", self.laser)
 
         if not hasattr(self, "peaks"):
             raise NameError("peaks not found, run fitPeaks first")
