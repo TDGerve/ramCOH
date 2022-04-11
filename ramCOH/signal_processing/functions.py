@@ -109,18 +109,18 @@ def long_correction(x, intensities, T_C=25.0, laser=532.18, normalisation=True):
     return intensityLong
 
 
-def H2Oraman(rWS, slope):
+def H2Oraman(rWS, *, intercept, slope):
     """Calculate water contents using the equation (3) from Le Losq et al. (2012)
 
     equation:
-    H2O/(100-H2O)= intercept + slope * rWS
+    H2O/(100-H2O) = intercept + slope * rWS
 
     rWS= (Area water peaks / Area silica peaks) of sample raman spectra
 
     intercept & slope are determined empirically through calibration with standards
     """
 
-    return (100 * slope * rWS) / (1 + slope * rWS)
+    return (100 * (intercept + slope * rWS)) / (1 + intercept + slope * rWS)
 
 
 def _extractBIR(x, y, birs):

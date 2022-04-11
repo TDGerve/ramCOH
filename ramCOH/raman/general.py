@@ -67,14 +67,16 @@ class RamanProcessing:
 
         if (hasattr(self, "birs")) & (baseline_regions is None):
             baseline_regions = self.birs
+        else:
+            self.birs = baseline_regions
 
         if (hasattr(self.signal, "normalised")):
             warn("run normalisation again to normalise baseline corrected spectrum")
 
         xbir, ybir = f._extractBIR(self.x, spectrum, baseline_regions)
 
-        max_difference = abs(ybir.max() - ybir.min())
-        smooth = 2e-4 * max_difference * smooth_factor
+        # max_difference = abs(ybir.max() - ybir.min())
+        smooth = 1e-6 * smooth_factor
 
         spline = csaps(xbir, ybir, smooth=smooth)
         self.baseline = spline(self.x)
