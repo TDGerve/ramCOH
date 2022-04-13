@@ -53,12 +53,6 @@ class H2O(ram.RamanProcessing):
         # regions with interference peaks
         interpolate_index = ~glassIndex
 
-        # Fit spline to baseline regions
-
-        ##########
-        # DON'T FIT THE SPLINE ON THE FIRST 250 RAMAN SHIFTS
-        #########
-        
         spline = cs.csaps(xbir, ybir, smooth=smooth)
         self.spectrum_spline = spline(self.x)
         # Interpolated residual
@@ -79,7 +73,7 @@ class H2O(ram.RamanProcessing):
         )
 
         self.spectrumSelect = "interpolated"
-        self.processing["interplated"] = True
+        self.processing["interpolated"] = True
 
     def extract_olivine(
         self, olivine_x, olivine_y, *, peak_prominence=10, smooth=1e-6, **kwargs
@@ -172,13 +166,16 @@ class H2O(ram.RamanProcessing):
         if not hasattr(self.signal, "baseline_corrected"):
             raise RuntimeError("run baseline correction first")
 
+        water_left = self.birs[-2][1]
+        water_right = self.birs[-1][0]
+
         spectrum = getattr(self.signal, "baseline_corrected")
         SiArea = np.trapz(
             spectrum[(self.x > 150) & (self.x < 1400)],
             self.x[(self.x > 150) & (self.x < 1400)],
         )
         H2Oarea = np.trapz(
-            spectrum[(self.x > 3000) & (self.x < 3900)],
-            self.x[(self.x > 3000) & (self.x < 3900)],
+            spectrum[(self.x > water_left) & (self.x < water_right)],
+            self.x[(self.x > water_left) & (self.x < water_right)],
         )
         self.SiH2Oareas = SiArea, H2Oarea

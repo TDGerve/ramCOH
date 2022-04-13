@@ -9,6 +9,9 @@ from ..signal_processing import deconvolution as d
 from ..signal_processing import functions as f
 
 
+
+
+
 class signal:
     def __init__(self, y):
         self.raw = y
@@ -16,8 +19,8 @@ class signal:
 
 class RamanProcessing:
     def __init__(self, x, y, laser=532.18):
-        self.signal = signal(np.array(y)[np.argsort(x)])
-        self.x = np.array(x)[np.argsort(x)]
+        self.x = f.trim_sort(x, y)[0]
+        self.signal = signal(f.trim_sort(x, y)[1])
         self.laser = laser
         # flag to check if baseline correction has been used
         self.baseline_correction = False
