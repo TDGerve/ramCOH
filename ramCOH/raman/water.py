@@ -11,13 +11,14 @@ from .. import raman as ram
 
 class H2O(ram.RamanProcessing):
     # Baseline regions
-    birs = np.array([[20, 150], [640, 655], [800, 810], [1220, 2800], [3850, 4000]])
-    main_olivine_birs = [760, 910]
+    birs = np.array([[20, 250], [640, 655], [800, 810], [1220, 2800], [3750, 4000]])
 
     def __init__(self, x, y):
 
         super().__init__(x, y)
-        self.processing.update({"long_corrected": False, "interpolated": False, "olivine_corrected": False})
+        self.processing.update(
+            {"long_corrected": False, "interpolated": False, "olivine_corrected": False}
+        )
 
     def longCorrect(self, T_C=23.0, normalisation="area", **kwargs):
 
@@ -32,40 +33,39 @@ class H2O(ram.RamanProcessing):
         self.spectrumSelect = "long_corrected"
         self.processing["long_corrected"] = True
 
-    def interpolate(self, interpolate=[760, 910], smooth=1e-6, **kwargs):
+    def interpolate(self, *, interpolate=[780, 900], smooth=1e-6, **kwargs):
 
-        birs = np.array([[self.x.min(), min(interpolate)], [max(interpolate), self.x.max()]])
+        birs = np.array(
+            [[self.x.min(), min(interpolate)], [max(interpolate), self.x.max()]]
+        )
 
         y = kwargs.get("y", self.spectrumSelect)
         spectrum = getattr(self.signal, y)
 
         xbir, ybir = f._extractBIR(self.x, spectrum, birs)
 
-        # Boolean array for glass only regions; no olivine peaks
+        # Boolean array for glass only regions; no interference peaks
         for i, region in enumerate(birs):
             if i == 0:
                 glassIndex = (self.x > region[0]) & (self.x < region[1])
             else:
                 glassIndex = glassIndex | ((self.x > region[0]) & (self.x < region[1]))
-        # regions with olivine peaks
+        # regions with interference peaks
         interpolate_index = ~glassIndex
 
-        # Fit spline to baseline regions
         spline = cs.csaps(xbir, ybir, smooth=smooth)
         self.spectrum_spline = spline(self.x)
         # Interpolated residual
         self.interpolation_residuals = spectrum - self.spectrum_spline
 
-        _, baseline = f._extractBIR(self.x, self.interpolation_residuals, birs)
+        _, baseline = f._extractBIR(self.x[self.x > 350], self.interpolation_residuals[self.x > 350], birs)
         noise = baseline.std(axis=None)
         # Add signal noise to the spline
         noise_spline = self.spectrum_spline + np.random.normal(0, noise, len(self.x))
 
         # only replace interpolated parts of the spectrum
         setattr(self.signal, "interpolated", spectrum.copy())
-        self.signal.interpolated[interpolate_index] = noise_spline[
-            interpolate_index
-        ]
+        self.signal.interpolated[interpolate_index] = noise_spline[interpolate_index]
 
         # Area of interpolated regions
         self.interpolated_area = np.trapz(
@@ -73,21 +73,21 @@ class H2O(ram.RamanProcessing):
         )
 
         self.spectrumSelect = "interpolated"
-        self.processing["interplated"] = True
+        self.processing["interpolated"] = True
 
     def extract_olivine(
-        self, olivine_x, olivine_y, *, peak_prominence=6, smooth=1e-6, **kwargs
+        self, olivine_x, olivine_y, *, peak_prominence=10, smooth=1e-6, **kwargs
     ):
 
         # Set default values
         default_birs = np.array(
-            [[0, 250], [460, 550], [650, 720], [1035, 4000]]
-        )  # [900, 910],
+            [[0, 780], [900, 4000]]
+        )  # np.array([[0, 250], [460, 550], [650, 720], [1035, 4000]])
         birs = kwargs.get("birs", default_birs)
-        fit_window = kwargs.get("fit_window", 8)
+        fit_window = kwargs.get("fit_window", 6)
         noise_threshold = kwargs.get("noise_threshold", 1.5)
         threshold_scale = kwargs.get("threshold_scale", 0.0)
-        cutoff_high = 1400
+        cutoff_high = 1100
         cutoff_low = 700
 
         y = kwargs.get("y", self.spectrumSelect)
@@ -114,7 +114,7 @@ class H2O(ram.RamanProcessing):
 
         # Deconvolute the major olivine peaks
         olivine_fit = ram.RamanProcessing(x, olivine_trim)
-        # print("fitting interference")
+        # print("fitting interference")ol
         olivine_fit.deconvolve(
             peak_prominence=peak_prominence,
             noise_threshold=1.5,
@@ -126,7 +126,7 @@ class H2O(ram.RamanProcessing):
             max_iterations=3,
         )
 
-        # self.olivine_main_peaks = olivine_fit.deconvolution_parameters
+        olivine_main_peaks = olivine_fit.deconvolution_parameters
 
         # Deconvolute host crystal spectrum
         olivine = ram.olivine(olivine_x, olivine_y)
@@ -158,20 +158,24 @@ class H2O(ram.RamanProcessing):
 
         self.olivinePeaks = [
             {"center": i, "amplitude": j, "width": k, "shape": l, "baselevel": m}
-            for _, (i, j, k, l, m) in enumerate(zip(*self.olivine_main_peaks))
+            for _, (i, j, k, l, m) in enumerate(zip(*olivine_main_peaks))
         ]
 
-    def SiH2Oareas(self, **kwargs):
+    def calculate_SiH2Oareas(self, **kwargs):
 
         if not hasattr(self.signal, "baseline_corrected"):
             raise RuntimeError("run baseline correction first")
 
+        water_left = self.birs[-2][1]
+        water_right = self.birs[-1][0]
+
         spectrum = getattr(self.signal, "baseline_corrected")
-        self.SiArea = np.trapz(
+        SiArea = np.trapz(
             spectrum[(self.x > 150) & (self.x < 1400)],
             self.x[(self.x > 150) & (self.x < 1400)],
         )
-        self.H2Oarea = np.trapz(
-            spectrum[(self.x > 2800) & (self.x < 3900)],
-            self.x[(self.x > 2800) & (self.x < 3900)],
+        H2Oarea = np.trapz(
+            spectrum[(self.x > water_left) & (self.x < water_right)],
+            self.x[(self.x > water_left) & (self.x < water_right)],
         )
+        self.SiH2Oareas = SiArea, H2Oarea

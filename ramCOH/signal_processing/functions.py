@@ -31,6 +31,30 @@ def neonEmission(laser=532.18):
     return neon
 
 
+def trim_sort(x, y, cutoff=70):
+    """
+    Sort and trim x, y data
+
+    Parameters
+    ----------
+    x : array-like
+        x
+    y : array-like
+        y
+
+    Returns
+    -------
+    x, y : x and y sorted by x and trimmed to x > cutoff
+    """
+    x = np.array(x)
+    y = np.array(y)
+    sort = np.argsort(x)
+    y_sort = y[sort]
+    x_sort = x[sort]
+
+    return x_sort[x > cutoff], y_sort[x > cutoff]
+
+
 def smooth(y, smoothType="Gaussian", kernelWidth=9):
     """
     Parameters
@@ -109,18 +133,18 @@ def long_correction(x, intensities, T_C=25.0, laser=532.18, normalisation=True):
     return intensityLong
 
 
-def H2Oraman(rWS, slope):
+def H2Oraman(rWS, *, intercept, slope):
     """Calculate water contents using the equation (3) from Le Losq et al. (2012)
 
     equation:
-    H2O/(100-H2O)= intercept + slope * rWS
+    H2O/(100-H2O) = intercept + slope * rWS
 
     rWS= (Area water peaks / Area silica peaks) of sample raman spectra
 
     intercept & slope are determined empirically through calibration with standards
     """
 
-    return (100 * slope * rWS) / (1 + slope * rWS)
+    return (100 * (intercept + slope * rWS)) / (1 + intercept + slope * rWS)
 
 
 def _extractBIR(x, y, birs):
@@ -141,16 +165,12 @@ def _extractBIR(x, y, birs):
         alues for y within baseline interpolation regions
     """
 
-    spectrum = np.column_stack((x, y))
-    for i, j in enumerate(birs):
-        if i == 0:
-            spectrumBir = spectrum[(spectrum[:, 0] > j[0]) & (spectrum[:, 0] < j[1]), :]
-        else:
-            birRegion = spectrum[(spectrum[:, 0] > j[0]) & (spectrum[:, 0] < j[1]), :]
-            # xfit= np.vstack((xfit,xtemp))
-            spectrumBir = np.row_stack((spectrumBir, birRegion))
+    selection = (x > birs[0][0]) & (x < birs[0][1])
 
-    return spectrumBir[:, 0], spectrumBir[:, 1]
+    for bir in birs[1:]:
+        selection = selection | ((x > bir[0]) & (x < bir[1]))
+
+    return x[selection], y[selection]
 
 
 def _calculate_noise(x, y, smooth_factor=1):

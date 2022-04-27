@@ -9,6 +9,9 @@ from ..signal_processing import deconvolution as d
 from ..signal_processing import functions as f
 
 
+
+
+
 class signal:
     def __init__(self, y):
         self.raw = y
@@ -16,8 +19,8 @@ class signal:
 
 class RamanProcessing:
     def __init__(self, x, y, laser=532.18):
-        self.signal = signal(np.array(y)[np.argsort(x)])
-        self.x = np.array(x)[np.argsort(x)]
+        self.x = f.trim_sort(x, y)[0]
+        self.signal = signal(f.trim_sort(x, y)[1])
         self.laser = laser
         # flag to check if baseline correction has been used
         # self.baseline_correction = False
@@ -67,14 +70,16 @@ class RamanProcessing:
 
         if (hasattr(self, "birs")) & (baseline_regions is None):
             baseline_regions = self.birs
+        else:
+            self.birs = baseline_regions
 
         if (hasattr(self.signal, "normalised")):
             warn("run normalisation again to normalise baseline corrected spectrum")
 
         xbir, ybir = f._extractBIR(self.x, spectrum, baseline_regions)
 
-        max_difference = abs(ybir.max() - ybir.min())
-        smooth = 2e-4 * max_difference * smooth_factor
+        # max_difference = abs(ybir.max() - ybir.min())
+        smooth = 1e-6 * smooth_factor
 
         spline = csaps(xbir, ybir, smooth=smooth)
         self.baseline = spline(self.x)
