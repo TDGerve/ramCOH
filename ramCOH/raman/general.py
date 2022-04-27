@@ -20,11 +20,11 @@ class RamanProcessing:
         self.x = np.array(x)[np.argsort(x)]
         self.laser = laser
         # flag to check if baseline correction has been used
-        self.baseline_correction = False
-        # flag to check if normalisation has been used
-        self.norm = False
-        # flag to check if smoothing has been used
-        self.smoothing = False
+        # self.baseline_correction = False
+        # # flag to check if normalisation has been used
+        # self.norm = False
+        # # flag to check if smoothing has been used
+        # self.smoothing = False
         self.processing = {
             "baseline_corrected": False,
             "normalised": False,
