@@ -1,4 +1,4 @@
-from attr import has
+# from attr import has
 from . import general as ram
 import numpy as np
 
