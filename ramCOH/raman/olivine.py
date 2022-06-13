@@ -1,9 +1,14 @@
+<<<<<<< HEAD
+from attr import has
+from .baseclass import RamanProcessing
+=======
 # from attr import has
 from . import general as ram
+>>>>>>> 9048f133aa895eb4a560d405527ed081844f9b9f
 import numpy as np
 
 
-class olivine(ram.RamanProcessing):
+class Olivine(RamanProcessing):
     # Baseline regions
     birs = np.array(
         [
