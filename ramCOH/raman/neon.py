@@ -1,10 +1,10 @@
-from . import general as ram
+from .baseclass import RamanProcessing
 import numpy as np
 from ..signal_processing import functions as f
 import itertools as it
 
 
-class neon(ram.RamanProcessing):
+class neon(RamanProcessing):
     # Baseline regions
     birs = np.array(
         [

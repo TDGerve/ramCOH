@@ -2,14 +2,16 @@ import numpy as np
 import csaps as cs
 import scipy.optimize as opt
 from warnings import warn
+
+from ramCOH.raman.general import RamanProcessing
 from ..signal_processing import functions as f
 from ..signal_processing import curve_fitting as cf
 from ..signal_processing import curves as c
 from ..signal_processing import deconvolution as d
-from .. import raman as ram
+from .baseclass import RamanProcessing
 
 
-class H2O(ram.RamanProcessing):
+class H2O(RamanProcessing):
     # Baseline regions
     birs = np.array([[20, 250], [640, 655], [800, 810], [1220, 2800], [3750, 4000]])
 
@@ -113,7 +115,7 @@ class H2O(ram.RamanProcessing):
         x = self.x[trim]
 
         # Deconvolute the major olivine peaks
-        olivine_fit = ram.RamanProcessing(x, olivine_trim)
+        olivine_fit = RamanProcessing(x, olivine_trim)
         # print("fitting interference")ol
         olivine_fit.deconvolve(
             peak_prominence=peak_prominence,
@@ -129,7 +131,7 @@ class H2O(ram.RamanProcessing):
         olivine_main_peaks = olivine_fit.deconvolution_parameters
 
         # Deconvolute host crystal spectrum
-        olivine = ram.olivine(olivine_x, olivine_y)
+        olivine = olivine(olivine_x, olivine_y)
         olivine.baselineCorrect()
         olivine.calculate_noise()
         # print("fitting host")

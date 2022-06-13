@@ -1,4 +1,4 @@
-from .general import *
+from .baseclass import *
 from .CO2 import *
 from .water import *
 from .olivine import *
