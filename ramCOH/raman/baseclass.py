@@ -22,17 +22,7 @@ class RamanProcessing:
         self.x = f.trim_sort(x, y)[0]
         self.signal = signal(f.trim_sort(x, y)[1])
         self.laser = laser
-<<<<<<< HEAD:ramCOH/raman/baseclass.py
         self.__processing = {
-=======
-        # flag to check if baseline correction has been used
-        # self.baseline_correction = False
-        # # flag to check if normalisation has been used
-        # self.norm = False
-        # # flag to check if smoothing has been used
-        # self.smoothing = False
-        self.processing = {
->>>>>>> 9048f133aa895eb4a560d405527ed081844f9b9f:ramCOH/raman/general.py
             "baseline_corrected": False,
             "normalised": False,
             "smoothed": False,
