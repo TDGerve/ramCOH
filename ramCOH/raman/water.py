@@ -3,7 +3,6 @@ import csaps as cs
 import scipy.optimize as opt
 from warnings import warn
 
-from ramCOH.raman.general import RamanProcessing
 from ..signal_processing import functions as f
 from ..signal_processing import curve_fitting as cf
 from ..signal_processing import curves as c
@@ -15,9 +14,9 @@ class H2O(RamanProcessing):
     # Baseline regions
     birs = np.array([[20, 250], [640, 655], [800, 810], [1220, 2800], [3750, 4000]])
 
-    def __init__(self, x, y):
+    def __init__(self, x, y, **kwargs):
 
-        super().__init__(x, y)
+        super().__init__(x, y, **kwargs)
         self.processing.update(
             {"long_corrected": False, "interpolated": False, "olivine_corrected": False}
         )
@@ -26,13 +25,13 @@ class H2O(RamanProcessing):
 
         laser = kwargs.get("laser", self.laser)
 
-        y = kwargs.get("y", self.spectrumSelect)
+        y = kwargs.get("y", self._spectrumSelect)
         spectrum = getattr(self.signal, y)
 
         long_corrected = f.long_correction(self.x, spectrum, T_C, laser, normalisation)
         setattr(self.signal, "long_corrected", long_corrected)
         # self.LC = 1
-        self.spectrumSelect = "long_corrected"
+        self._spectrumSelect = "long_corrected"
         self.processing["long_corrected"] = True
 
     def interpolate(self, *, interpolate=[780, 900], smooth=1e-6, **kwargs):
@@ -41,7 +40,7 @@ class H2O(RamanProcessing):
             [[self.x.min(), min(interpolate)], [max(interpolate), self.x.max()]]
         )
 
-        y = kwargs.get("y", self.spectrumSelect)
+        y = kwargs.get("y", self._spectrumSelect)
         spectrum = getattr(self.signal, y)
 
         xbir, ybir = f._extractBIR(self.x, spectrum, birs)
@@ -74,7 +73,7 @@ class H2O(RamanProcessing):
             self.interpolation_residuals[interpolate_index], self.x[interpolate_index]
         )
 
-        self.spectrumSelect = "interpolated"
+        self._spectrumSelect = "interpolated"
         self.processing["interpolated"] = True
 
     def extract_olivine(
@@ -92,7 +91,7 @@ class H2O(RamanProcessing):
         cutoff_high = 1100
         cutoff_low = 700
 
-        y = kwargs.get("y", self.spectrumSelect)
+        y = kwargs.get("y", self._spectrumSelect)
         spectrum = getattr(self.signal, y)
 
         xbir, ybir = f._extractBIR(self.x, spectrum, birs)
@@ -155,7 +154,7 @@ class H2O(RamanProcessing):
 
         olivine_corrected = spectrum - (self.olivine / self.olivine_scale)
         setattr(self.signal, "olivine_corrected", olivine_corrected)
-        self.spectrumSelect = "olivine_corrected"
+        self._spectrumSelect = "olivine_corrected"
         self.processing["olivine_corrected"] = True
 
         self.olivinePeaks = [
