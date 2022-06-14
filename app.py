@@ -12,14 +12,15 @@ import meltInc.plotting as p
 
 
 # Some plot settings
-fontsize = 10
+fontsize = 8
 p.layout(
     colors=p.colors.bella,
     axTitleSize=fontsize,
-    axLabelSize=fontsize / 1.2,
-    tickLabelSize=fontsize / 1.5,
+    axLabelSize=fontsize,
+    tickLabelSize=fontsize / 1.2,
     fontSize=fontsize,
 )
+
 
 
 class main_window:
@@ -39,10 +40,13 @@ class main_window:
         
         # Set theme
         style = ttk.Style()
-        theme = "default"
+        root.tk.call('source', f"{os.getcwd()}/breeze/breeze.tcl")
+        theme = "Breeze"
         style.theme_use(theme)
+        style.configure(".", font="Verdana")
         # Grab some theme elements, for passing on to widgets
         self.font = style.lookup(theme, "font")
+        print(self.font)
         self.bgClr = style.lookup(theme, "background")
         self.bgClr_plt = tuple((c / 2 ** 16 for c in root.winfo_rgb(self.bgClr)))
 
@@ -156,7 +160,7 @@ class main_window:
         if current < total:
             self.sample_list.select_clear(current)
             self.sample_list.selection_set(new)
-            self.samples_list.see(new)
+            self.sample_list.see(new)
             self.select_sample(self.sample_list.curselection())
 
     def previous_sample(self):
@@ -165,7 +169,7 @@ class main_window:
         if current > 0:
             self.sample_list.select_clear(current)
             self.sample_list.selection_set(new)
-            self.samples_list.see(new)
+            self.sample_list.see(new)
             self.select_sample(self.sample_list.curselection())
 
     def export_data():
