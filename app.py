@@ -48,13 +48,16 @@ class main_window:
 
         root.title("ramCOH by T. D. van Gerve")
 
-        ##### INITIATE SETTINGS #####
-        # Make the app resizable
+        
+        # Set some geometries
+        root.geometry("800x1000")
         root.resizable(True, True)
         sizegrip = ttk.Sizegrip(root)
         sizegrip.grid(row=0, sticky=("se"))
         root.rowconfigure(0, weight=1)
         root.columnconfigure(3, weight=1)
+
+        ##### INITIATE SETTINGS #####
         self.settings = settings(root, self)
 
         ##### CREATE MENU BAR #####
@@ -99,11 +102,10 @@ class main_window:
         panels.add(self.baseline, text="Baseline correction")
         panels.add(interpolate, text="Interpolation")
         panels.add(subtract, text="Crystal correction")
-        # Make them resizable
+        # Adjust resizability
         panels.rowconfigure(0, weight=1)
         panels.columnconfigure(0, weight=1)
-        self.baseline.rowconfigure(0, weight=1)
-        self.baseline.columnconfigure(0, weight=1)
+
 
         ##### POPULATE SAMPLES FRAME #####
         # List with all samples
@@ -159,7 +161,6 @@ class main_window:
 
     def previous_sample(self):
         current = self.sample_list.curselection()[-1]
-        total = self.sample_list.size()
         new = current - 1
         if current > 0:
             self.sample_list.select_clear(current)
@@ -272,6 +273,11 @@ class baseline_correction(ttk.Frame):
 
         super().__init__(parent, *args, **kwargs)
         self.app = app
+        # Frame settings
+        self.rowconfigure(0, weight=1)
+        self.rowconfigure(7, weight=1)
+        self.columnconfigure(0, weight=1)
+
         ##### WIDGETS #####
         # Main plot
 
