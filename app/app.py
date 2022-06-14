@@ -23,16 +23,7 @@ p.layout(
 class main_window:
     def __init__(self, root, *args, **kwargs):
         """
-        Widgets needed:
-        - menubar:
-        load files dialog window
-            process file names
-        export data dialog window
-
-        - notebook:
-        olivine subtraction
-        olivine interpolation
-        main processing
+        Main window
         """
 
         # Set theme
@@ -45,6 +36,7 @@ class main_window:
         self.font = style.lookup(theme, "font")
         print(self.font)
         self.bgClr = style.lookup(theme, "background")
+        # calculate background color to something matplotlib understands
         self.bgClr_plt = tuple((c / 2 ** 16 for c in root.winfo_rgb(self.bgClr)))
 
         root.title("ramCOH by T. D. van Gerve")

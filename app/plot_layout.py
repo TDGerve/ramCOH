@@ -1,5 +1,7 @@
 import matplotlib.pyplot as plt
 import meltInc.plotting as p
+from tkinter import ttk
+import os
 
 
 # Some plot settings
@@ -15,15 +17,23 @@ p.layout(
 class plot_layout:
     """
     plot layout settings
-    """
+    """    
+
+    def __init__(self, root):
+        # load some rcParams
+                    # Set theme
+        style = ttk.Style()
+        root.tk.call("source", f"{os.getcwd()}/theme/breeze.tcl")
+        theme = "Breeze"
+        style.theme_use(theme)
+        style.configure(".", font="Verdana")
+        # Grab some theme elements, for passing on to widgets
+        self.font = style.lookup(theme, "font")
+        self.background = style.lookup(theme, "background")
+        # calculate background color to something matplotlib understands
+        self.background_plt = tuple((c / 2 ** 16 for c in root.winfo_rgb(self.bgClr)))
 
     class color_palettes:
-
-        def __init__():
-            # load some rcParams
-            0
-
-
         flatDesign = plt.cycler(
             color=["#e27a3d", "#344d5c", "#df5a49", "#43b29d", "#efc94d"]
         )
