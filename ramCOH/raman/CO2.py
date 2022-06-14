@@ -12,7 +12,7 @@ class CO2(RamanProcessing):
 
     def FermiDiad(self, peak_prominence=40, fit_window=8, **kwargs):
 
-        y = kwargs.get("y", self.spectrumSelect)
+        y = kwargs.get("y", self._spectrumSelect)
         spectrum = getattr(self.signal, y)
         self.diad = {}
 
