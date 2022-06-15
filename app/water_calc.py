@@ -21,25 +21,29 @@ class water_calc(ttk.Frame):
         self.app = app
         # Frame settings
         self.rowconfigure(0, weight=1)
-        self.rowconfigure(7, weight=1)
+        # self.rowconfigure(7, weight=1)
         self.columnconfigure(0, weight=1)
+        self.columnconfigure(1, weight=1)
+
 
         plot_frame = ttk.Frame(self)
         buttons_frame = ttk.Frame(self)
-        plot_frame.grid(row=0, column=0, columnspan=5, rowspan=8, sticky=("nesw"))
-        buttons_frame.grid(row=0, column=5, columnspan=2, rowspan=8, sticky=("nesw"))
+        plot_frame.grid(row=0, column=0, rowspan=8, sticky=("nesw"))
+        buttons_frame.grid(row=0, column=1, rowspan=8, sticky=("nesw"))
         # Plot frame geometry
         plot_frame.rowconfigure(0, weight=1)
         plot_frame.columnconfigure(0, weight=4)
         # Button frame geometry
-        for i in (3, 4, 5, 6):
+        for i in (3, 5, 6):
             buttons_frame.rowconfigure(i, weight=8)
         buttons_frame.rowconfigure(0, weight=1)
+        buttons_frame.rowconfigure(4, weight=4)
         buttons_frame.rowconfigure(2, weight=4)
         buttons_frame.rowconfigure(7, weight=4)
 
-        buttons_frame.columnconfigure(0, weight=1)
-        buttons_frame.columnconfigure(1, weight=1)
+        # buttons_frame.columnconfigure(0, weight=1
+        for i in range(3):
+            buttons_frame.columnconfigure(i, weight=1)
 
         # Radiobuttons
         bir_var = DoubleVar()
@@ -56,42 +60,63 @@ class water_calc(ttk.Frame):
         self.save_button = ttk.Button(buttons_frame, text="Save", state=tk.DISABLED)
         self.save_button.grid(row=7, column=0, columnspan=2, sticky=("ew"), padx=5, pady=5)
 
+        label = ttk.Label(text="Areas", font=("verdana", 16, "bold"))
+        areas_frame = ttk.Labelframe(buttons_frame, labelwidget=label)
+        areas_frame.grid(row=4, column=0, columnspan=2, sticky=("ew"))
+        for i in range(3):
+            areas_frame.rowconfigure(i, weight=1)
+  
         # Text widgets
-        Si_label = tk.Text(buttons_frame, width=7, height=1, font=("verdana", 18))
-        Si_label.grid(row=2, column=0, sticky=("sew"))
-        H2O_label = tk.Text(buttons_frame, width=7, height=2, font=("verdana", 18))
-        H2O_label.grid(row=5, column=0, sticky=("sew"))
+        font = ("verdana", 14, "italic")
+        subfont =("verdana", 6, "italic")
+        Si_label = tk.Text(areas_frame, width=7, height=1, font=font)
+        H2OSi_label = tk.Text(areas_frame, width=7, height=1, font=font)
+        H2O_label = tk.Text(areas_frame, width=7, height=1, font=font)
+        Si_label.grid(row=0, column=0, sticky=("nsew"))
+        H2O_label.grid(row=1, column=0, sticky=("nsew"))
+        H2OSi_label.grid(row=2, column=0, sticky=("nsew"))
         # Si text
-        Si_label.insert(tk.END, "AreaSi")
-        Si_label.tag_add("subscript", "1.4", "1.6")
-        Si_label.tag_configure("subscript", offset=-4, font=("verdana", 12, "italic"))
+        Si_label.insert(tk.END, "Si")
         Si_label.configure(state=tk.DISABLED)
         # H2O text
-        H2O_label.insert(tk.END, "AreaH2O")
-        H2O_label.tag_add("subscript", "1.4", "1.7")
-        H2O_label.tag_configure("subscript", offset=-4, font=("verdana", 12, "italic"))
-        H2O_label.tag_remove("subscript", "1.5", "1.6")
-        H2O_label.tag_add("subsubscript", "1.5", "1.6")
-        H2O_label.tag_configure("subsubscript", offset=-8, font=("verdana", 10, "italic"))
+        H2O_label.insert(tk.END, "H2O")
+        H2O_label.tag_add("subscript", "1.1", "1.2")
+        H2O_label.tag_configure("subscript", offset=-2, font=subfont)
         H2O_label.configure(state=tk.DISABLED)
+        # H2O/Si text
+        H2OSi_label.insert(tk.END, "H2O/Si")
+        H2OSi_label.tag_add("subscript", "1.1", "1.2")
+        H2OSi_label.tag_configure("subscript", offset=-2, font=subfont)
+        H2OSi_label.configure(state=tk.DISABLED)
 
         # Label widgets
-        Si_var = tk.DoubleVar()
-        H2O_var = tk.DoubleVar()
-        Si_var.set(2)
-        H2O_var.set(5)
-        self.Si_area_label = ttk.Label(buttons_frame, textvariable=Si_var, font=("verdana", 18))
-        self.Si_area_label.grid(row=3, column=0, sticky=("new"))
-        self.H2O_area_label = ttk.Label(buttons_frame, textvariable=H2O_var, font=("verdana", 18))
-        self.H2O_area_label.grid(row=6, column=0, sticky=("new"))
+        self.Si_var = tk.DoubleVar()
+        self.H2O_var = tk.DoubleVar()
+        self.H2OSi_var = tk.DoubleVar()
+        self.Si_area_label = ttk.Label(areas_frame, textvariable=self.Si_var, font=font)
+        self.H2O_area_label = ttk.Label(areas_frame, textvariable=self.H2O_var, font=font)
+        self.H2OSi_area_label = ttk.Label(areas_frame, textvariable=self.H2OSi_var, font=font)
+        Si_units = tk.Text(areas_frame, width=5, height=1, font=font)
+        H2O_units = tk.Text(areas_frame, width=5, height=1, font=font)
 
-        
+        self.Si_area_label.grid(row=0, column=1, sticky=("nesw"))        
+        self.H2O_area_label.grid(row=1, column=1, sticky=("nesw"))
+        self.H2OSi_area_label.grid(row=2, column=1, sticky=("nesw"))
+        Si_units.grid(row=0, column=2, sticky=("wns"))
+        H2O_units.grid(row=1, column=2, sticky=("wns"))
 
-        # Create plot canvas
+        for text in (Si_units, H2O_units):
+            text.insert(tk.END, "x 10-3")
+            text.tag_add("superscript", "1.4", "1.7")
+            text.tag_configure("superscript", offset=8, font=subfont)
+            text.configure(state=tk.DISABLED)
+   
+
+        # Plot colors
         self.colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
-
+        # Create plot canvas
         self.fig, (self.ax1, self.ax2) = plt.subplots(
-            2, 1, figsize=(5, 7), constrained_layout=True, dpi=80
+            2, 1, figsize=(3, 7), constrained_layout=True, dpi=80
         )
         self.canvas = FigureCanvasTkAgg(self.fig, plot_frame)
         self.canvas.draw()
@@ -129,7 +154,7 @@ class water_calc(ttk.Frame):
     def initiate_plot(self, index):
 
         self.data = self.app.data.spectra[index]
-
+        self.recalculate_areas()
         self.H2O_left, self.H2O_right = self.app.data.processing.loc[
             index, ["water_left", "water_right"]
         ]
@@ -206,12 +231,16 @@ class water_calc(ttk.Frame):
             for x in [self.H2O_left, self.H2O_right]
         ]
 
+
+
         # Connect mouse events to callback functions
         self.fig.canvas.mpl_connect("button_press_event", self._on_click)
         self.fig.canvas.mpl_connect("button_release_event", self._on_release)
         self.fig.canvas.mpl_connect("motion_notify_event", self._on_motion)
 
         self.canvas.draw()
+
+        # Activate buttons
         self.save_button.configure(state=tk.NORMAL)
         self.bir_0.configure(state=tk.NORMAL)
         self.bir_1.configure(state=tk.NORMAL)
@@ -219,6 +248,7 @@ class water_calc(ttk.Frame):
     def update_plot_sample(self, index):
 
         self.data = self.app.data.spectra[index]
+        
 
         self.H2O_left, self.H2O_right = self.app.data.processing.loc[
             index, ["water_left", "water_right"]
@@ -246,6 +276,7 @@ class water_calc(ttk.Frame):
         for line, x in zip(self.H2O_bir_lines, (self.H2O_left, self.H2O_right)):
             line.set_xdata([x, x])
 
+        self.recalculate_areas()
         self.update_H2O_birs()
         self.update_Si_birs()
 
@@ -281,9 +312,18 @@ class water_calc(ttk.Frame):
 
         self.data.baselineCorrect(baseline_regions=birs)
         self.baselines[1][0].set_data(self.data.x, self.data.baseline)
-        self.corrected[1][0].set_data(self.data.x, self.data.signal.baseline_corrected)
+        self.corrected[1][0].set_data(self.data.x, self.data.signal.baseline_corrected)        
 
+        self.recalculate_areas()
         self.fig.canvas.draw_idle()
+
+    def recalculate_areas(self):
+
+        self.data.calculate_SiH2Oareas()
+        self.Si_area, self.H2O_area = self.data.SiH2Oareas
+        self.Si_var.set(round(self.Si_area * 1e3, 2))
+        self.H2O_var.set(round(self.H2O_area * 1e3, 2))
+        self.H2OSi_var.set(round((self.H2O_area / self.Si_area), 3))
 
     def _on_click(self, event):
         """
