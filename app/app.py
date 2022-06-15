@@ -31,7 +31,7 @@ class main_window:
         root.tk.call("source", f"{os.getcwd()}/theme/breeze.tcl")
         theme = "Breeze"
         style.theme_use(theme)
-        style.configure(".", font="Verdana")
+        style.configure(".", font="helvetica")
         # Grab some theme elements, for passing on to widgets
         self.font = style.lookup(theme, "font")
         self.bgClr = style.lookup(theme, "background")
@@ -147,7 +147,7 @@ class main_window:
         current = self.sample_list.curselection()[-1]
         total = self.sample_list.size()
         new = current + 1
-        if current < total:
+        if current < (total - 1):
             self.sample_list.select_clear(current)
             self.sample_list.selection_set(new)
             self.sample_list.see(new)

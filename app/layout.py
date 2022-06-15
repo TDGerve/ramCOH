@@ -14,7 +14,7 @@ p.layout(
     fontSize=fontsize,
 )
 
-class plot_layout:
+class layout:
     """
     plot layout settings
     """    

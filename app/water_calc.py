@@ -22,7 +22,7 @@ class water_calc(ttk.Frame):
         # Frame settings
         self.rowconfigure(0, weight=1)
         # self.rowconfigure(7, weight=1)
-        self.columnconfigure(0, weight=1)
+        self.columnconfigure(0, weight=4)
         self.columnconfigure(1, weight=1)
 
 
@@ -34,12 +34,13 @@ class water_calc(ttk.Frame):
         plot_frame.rowconfigure(0, weight=1)
         plot_frame.columnconfigure(0, weight=4)
         # Button frame geometry
-        for i in (3, 5, 6):
-            buttons_frame.rowconfigure(i, weight=8)
         buttons_frame.rowconfigure(0, weight=1)
         buttons_frame.rowconfigure(4, weight=4)
-        buttons_frame.rowconfigure(2, weight=4)
-        buttons_frame.rowconfigure(7, weight=4)
+        buttons_frame.rowconfigure(2, weight=3)
+        for i in (3, 5, 6):
+            buttons_frame.rowconfigure(i, weight=1) 
+        buttons_frame.rowconfigure(7, weight=2)       
+        buttons_frame.rowconfigure(8, weight=2)
 
         # buttons_frame.columnconfigure(0, weight=1
         for i in range(3):
@@ -58,23 +59,23 @@ class water_calc(ttk.Frame):
 
         # Save button
         self.save_button = ttk.Button(buttons_frame, text="Save", state=tk.DISABLED)
-        self.save_button.grid(row=7, column=0, columnspan=2, sticky=("ew"), padx=5, pady=5)
+        self.save_button.grid(row=8, column=0, columnspan=2, sticky=("ew"), padx=5, pady=5)
 
-        label = ttk.Label(text="Areas", font=("verdana", 16, "bold"))
+        label = ttk.Label(text="Areas", font=(self.app.font, 16, "bold"))
         areas_frame = ttk.Labelframe(buttons_frame, labelwidget=label)
-        areas_frame.grid(row=4, column=0, columnspan=2, sticky=("ew"))
+        areas_frame.grid(row=4, column=0, columnspan=2, sticky=("e"))
         for i in range(3):
             areas_frame.rowconfigure(i, weight=1)
   
         # Text widgets
-        font = ("verdana", 14, "italic")
-        subfont =("verdana", 6, "italic")
+        font = (self.app.font , 14, "italic")
+        subfont =(self.app.font, 8, "italic")
         Si_label = tk.Text(areas_frame, width=7, height=1, font=font)
         H2OSi_label = tk.Text(areas_frame, width=7, height=1, font=font)
         H2O_label = tk.Text(areas_frame, width=7, height=1, font=font)
-        Si_label.grid(row=0, column=0, sticky=("nsew"))
-        H2O_label.grid(row=1, column=0, sticky=("nsew"))
-        H2OSi_label.grid(row=2, column=0, sticky=("nsew"))
+        Si_label.grid(row=0, column=0, sticky=("sw"))
+        H2O_label.grid(row=1, column=0, sticky=("sw"))
+        H2OSi_label.grid(row=2, column=0, sticky=("sw"))
         # Si text
         Si_label.insert(tk.END, "Si")
         Si_label.configure(state=tk.DISABLED)
@@ -90,23 +91,24 @@ class water_calc(ttk.Frame):
         H2OSi_label.configure(state=tk.DISABLED)
 
         # Label widgets
-        self.Si_var = tk.DoubleVar()
-        self.H2O_var = tk.DoubleVar()
-        self.H2OSi_var = tk.DoubleVar()
-        self.Si_area_label = ttk.Label(areas_frame, textvariable=self.Si_var, font=font)
-        self.H2O_area_label = ttk.Label(areas_frame, textvariable=self.H2O_var, font=font)
-        self.H2OSi_area_label = ttk.Label(areas_frame, textvariable=self.H2OSi_var, font=font)
+        self.Si_var = tk.StringVar()
+        self.H2O_var = tk.StringVar()
+        self.H2OSi_var = tk.StringVar()
+        label_width = 8
+        self.Si_area_label = ttk.Label(areas_frame, textvariable=self.Si_var, font=font, width=label_width)
+        self.H2O_area_label = ttk.Label(areas_frame, textvariable=self.H2O_var, font=font, width=label_width)
+        self.H2OSi_area_label = ttk.Label(areas_frame, textvariable=self.H2OSi_var, font=font, width=label_width)
         Si_units = tk.Text(areas_frame, width=5, height=1, font=font)
         H2O_units = tk.Text(areas_frame, width=5, height=1, font=font)
 
-        self.Si_area_label.grid(row=0, column=1, sticky=("nesw"))        
-        self.H2O_area_label.grid(row=1, column=1, sticky=("nesw"))
-        self.H2OSi_area_label.grid(row=2, column=1, sticky=("nesw"))
-        Si_units.grid(row=0, column=2, sticky=("wns"))
-        H2O_units.grid(row=1, column=2, sticky=("wns"))
+        self.Si_area_label.grid(row=0, column=1, sticky=("es"))        
+        self.H2O_area_label.grid(row=1, column=1, sticky=("es"))
+        self.H2OSi_area_label.grid(row=2, column=1, sticky=("es"))
+        Si_units.grid(row=0, column=2, sticky=("ws"))
+        H2O_units.grid(row=1, column=2, sticky=("ws"))
 
         for text in (Si_units, H2O_units):
-            text.insert(tk.END, "x 10-3")
+            text.insert(tk.END, "x 10-2")
             text.tag_add("superscript", "1.4", "1.7")
             text.tag_configure("superscript", offset=8, font=subfont)
             text.configure(state=tk.DISABLED)
@@ -152,6 +154,9 @@ class water_calc(ttk.Frame):
             child.grid_configure(padx=5, pady=5)
 
     def initiate_plot(self, index):
+        """
+        Docstring
+        """
 
         self.data = self.app.data.spectra[index]
         self.recalculate_areas()
@@ -167,10 +172,10 @@ class water_calc(ttk.Frame):
         self.ax1.set_ylim(0, y_max_Si * 1.05)
         self.ax2.set_ylim(0, y_max_h2o)
 
-        for ax in (self.ax1, self.ax2):
-            # Remove old plotted lines
-            for i, line in enumerate(ax.get_lines()):
-                line.remove()
+        # for ax in (self.ax1, self.ax2):
+        #     # Remove old plotted lines
+        #     for i, line in enumerate(ax.get_lines()):
+        #         line.remove()
 
         self.fig.canvas.draw_idle()
 
@@ -246,6 +251,9 @@ class water_calc(ttk.Frame):
         self.bir_1.configure(state=tk.NORMAL)
 
     def update_plot_sample(self, index):
+        """
+        Docstring
+        """
 
         self.data = self.app.data.spectra[index]
         
@@ -281,6 +289,9 @@ class water_calc(ttk.Frame):
         self.update_Si_birs()
 
     def update_H2O_birs(self):
+        """
+        Docstring
+        """
 
         polygon_left = np.array(
             [[1500, 0.0], [1500, 1.0], [self.H2O_left, 1.0], [self.H2O_left, 0.0]]
@@ -295,6 +306,9 @@ class water_calc(ttk.Frame):
         self.fig.canvas.draw_idle()
 
     def update_Si_birs(self):
+        """
+        Docstring
+        """
 
         for polygon in self.Si_bir_polygons[self.Si_birs_select]:
             polygon.set_visible(True)
@@ -303,6 +317,9 @@ class water_calc(ttk.Frame):
         self.fig.canvas.draw_idle()
 
     def recalculate_baseline(self):
+        """
+        Docstring
+        """
 
         H2O_bir = np.array(
             [[1500, round(self.H2O_left, -1)], [round(self.H2O_right, -1), 4000]]
@@ -318,17 +335,19 @@ class water_calc(ttk.Frame):
         self.fig.canvas.draw_idle()
 
     def recalculate_areas(self):
+        """
+        Docstring
+        """
 
         self.data.calculate_SiH2Oareas()
         self.Si_area, self.H2O_area = self.data.SiH2Oareas
-        self.Si_var.set(round(self.Si_area * 1e3, 2))
-        self.H2O_var.set(round(self.H2O_area * 1e3, 2))
-        self.H2OSi_var.set(round((self.H2O_area / self.Si_area), 3))
+        self.Si_var.set(f"{self.Si_area * 1e2: .3f}")
+        self.H2O_var.set(f"{self.H2O_area * 1e2: .3f}")
+        self.H2OSi_var.set(f"{(self.H2O_area / self.Si_area): .3f}")
 
     def _on_click(self, event):
         """
         callback method for mouse click event
-        :type event: MouseEvent
         """
         # left click
         if event.button == 1 and event.inaxes in [self.ax2]:
@@ -337,8 +356,8 @@ class water_calc(ttk.Frame):
                 self._dragging_line = line
 
     def _on_release(self, event):
-        """callback method for mouse release event
-        :type event: MouseEvent
+        """
+        Callback method for mouse release event
         """
         if event.button == 1 and event.inaxes in [self.ax2] and self._dragging_line:
             new_x = event.xdata
@@ -355,8 +374,8 @@ class water_calc(ttk.Frame):
             self.update_H2O_birs()
 
     def _on_motion(self, event):
-        """callback method for mouse motion event
-        :type event: MouseEvent
+        """
+        callback method for mouse motion event
         """
         if self._dragging_line:
             new_x = event.xdata
