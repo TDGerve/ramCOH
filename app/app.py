@@ -10,7 +10,7 @@ from subtraction import subtraction
 
 # Some plot settings
 import meltInc.plotting as p
-fontsize = 8
+fontsize = 6
 p.layout(
     colors=p.colors.bella,
     axTitleSize=fontsize,
@@ -34,7 +34,6 @@ class main_window:
         style.configure(".", font="Verdana")
         # Grab some theme elements, for passing on to widgets
         self.font = style.lookup(theme, "font")
-        print(self.font)
         self.bgClr = style.lookup(theme, "background")
         # calculate background color to something matplotlib understands
         self.bgClr_plt = tuple((c / 2 ** 16 for c in root.winfo_rgb(self.bgClr)))
@@ -42,7 +41,7 @@ class main_window:
         root.title("ramCOH by T. D. van Gerve")
 
         # Set some geometries
-        root.geometry("800x1000")
+        root.geometry("800x900")
         root.resizable(True, True)
         sizegrip = ttk.Sizegrip(root)
         sizegrip.grid(row=0, sticky=("se"))
@@ -68,6 +67,7 @@ class main_window:
         self.menu_file.entryconfigure("Export data", state=tk.DISABLED)
         # Settings menu
         menu_settings.add_command(label="Settings", command=self.settings.open_window)
+
         ##### CREATE FRAMES #####
         # Create the two main frames
         samples = ttk.Frame(root)
@@ -82,16 +82,16 @@ class main_window:
 
         # Create tabs inside the main frame
         panels = ttk.Notebook(main_frame)
-        self.baseline = water_calc(panels, self)
+        self.water_calc = water_calc(panels, self)
         interpolate = interpolation(panels)
         subtract = subtraction(panels)
         # Put the frames on the grid
         panels.grid(column=0, row=0, sticky=("nesw"))
-        self.baseline.grid(column=0, row=0, sticky=("nesw"))
+        self.water_calc.grid(column=0, row=0, sticky=("nesw"))
         interpolate.grid(column=0, row=0, sticky=("nesw"))
         subtract.grid(column=0, row=0, sticky=("nesw"))
         # Label the notebook tabs
-        panels.add(self.baseline, text="Baseline correction")
+        panels.add(self.water_calc, text="Baseline correction")
         panels.add(interpolate, text="Interpolation")
         panels.add(subtract, text="Crystal correction")
         # Adjust resizability
@@ -102,7 +102,7 @@ class main_window:
         # List with all samples
         self.samplesVar = tk.StringVar(value=[])
         self.sample_list = tk.Listbox(
-            samples, listvariable=self.samplesVar, selectmode=tk.SINGLE
+            samples, listvariable=self.samplesVar, selectmode=tk.BROWSE, state=tk.DISABLED
         )
         self.sample_list.grid(column=0, row=0, columnspan=2, rowspan=6, sticky=("nesw"))
         # Scroll bar for the samples list
@@ -131,16 +131,15 @@ class main_window:
         self.data.preprocess()
         self.samplesVar.set(list(self.data.names))
         self.menu_file.entryconfigure("Export data", state=tk.NORMAL)
-        # self.sample_list.configure(state=tk.NORMAL)
+        self.sample_list.configure(state=tk.NORMAL)
         self.sample_list.selection_set(first=0)
-        self.select_sample(self.sample_list.curselection())
-        print(self.sample_list.curselection())
-        self.baseline.update_plot_sample(self.sample)
+        self.water_calc.initiate_plot(0)
 
     def select_sample(self, index):
-        selection = index[-1]
-        self.sample = self.data.names[selection]
-        self.baseline.update_plot_sample(self.sample)
+        if index:
+            selection = index[-1]
+            self.sample = self.data.names[selection]
+            self.water_calc.update_plot_sample(selection)
 
     def next_sample(self):
         current = self.sample_list.curselection()[-1]

@@ -34,9 +34,6 @@ class RamanProcessing:
         return self.__processing
 
 
-
-
-
     def smooth(self, smoothType="Gaussian", kernelWidth=9, **kwargs):
         """
         Smoothing by either a moving average or with a Gaussian kernel.
@@ -89,7 +86,7 @@ class RamanProcessing:
         setattr(self.signal, "baseline_corrected", baseline_corrected)
 
         self.__processing["baseline_corrected"] = True
-        self._spectrumSelect = "baseline_corrected"
+
 
     def calculate_noise(self, baseline_regions=None):
 
