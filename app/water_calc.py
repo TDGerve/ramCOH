@@ -1,4 +1,4 @@
-from tkinter import ttk
+from tkinter import DoubleVar, ttk
 import tkinter as tk
 from RangeSlider import RangeSliderH
 import matplotlib.pyplot as plt
@@ -24,16 +24,39 @@ class water_calc(ttk.Frame):
         self.rowconfigure(7, weight=1)
         self.columnconfigure(0, weight=1)
 
-        self.colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+        plot_frame = ttk.Frame(self)
+        buttons_frame = ttk.Frame(self)
+        plot_frame.grid(row=0, column=0, columnspan=5, rowspan=8, sticky=("nesw"))
+        buttons_frame.grid(row=0, column=5, columnspan=1, rowspan=8, sticky=("nesw"))
+        plot_frame.rowconfigure(0, weight=1)
+        plot_frame.columnconfigure(0, weight=4)
+        buttons_frame.rowconfigure(0, weight=1)
+        buttons_frame.columnconfigure(0, weight=1)
+
+        # Radiobuttons
+        bir_var = DoubleVar()
+        self.bir_0 = ttk.Radiobutton(
+            buttons_frame, text="2 BIRs", variable=bir_var, value=0, state=tk.DISABLED
+        )
+        self.bir_1 = ttk.Radiobutton(
+            buttons_frame, text="1 BIR", variable=bir_var, value=1, state=tk.DISABLED
+        )
+        self.bir_0.grid(row=0, column=0, sticky=("news"), padx=5, pady=5)
+        self.bir_1.grid(row=1, column=0, sticky=("news"), padx=5, pady=5)
+        # Save button
+        self.save_button = ttk.Button(buttons_frame, text="Save", state=tk.DISABLED)
+        self.save_button.grid(row=2, column=0, sticky=("news"), padx=5, pady=5)
 
         # Create plot canvas
+        self.colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
+
         self.fig, (self.ax1, self.ax2) = plt.subplots(
-            2, 1, figsize=(5, 7), constrained_layout=True, dpi=100
+            2, 1, figsize=(5, 7), constrained_layout=True, dpi=80
         )
-        self.canvas = FigureCanvasTkAgg(self.fig, self)
+        self.canvas = FigureCanvasTkAgg(self.fig, plot_frame)
         self.canvas.draw()
         self.canvas.get_tk_widget().grid(
-            row=0, column=0, rowspan=6, columnspan=5, sticky=("nesw")
+            row=0, column=0, rowspan=8, columnspan=5, sticky=("nesw")
         )
 
         self.ax1.set_title("Silicate region")
@@ -60,11 +83,16 @@ class water_calc(ttk.Frame):
         self.baselines = []
         self.corrected = []
 
+        for child in self.winfo_children():
+            child.grid_configure(padx=5, pady=5)
+
     def initiate_plot(self, index):
 
         self.data = self.app.data.spectra[index]
 
-        self.H2O_left, self.H2O_right = self.app.data.processing.loc[index, ["water_left", "water_right"]]
+        self.H2O_left, self.H2O_right = self.app.data.processing.loc[
+            index, ["water_left", "water_right"]
+        ]
         H2O_bir = np.array([[1500, self.H2O_left], [self.H2O_right, 4000]])
         self.Si_birs_select = int(self.app.data.processing.loc[index, "Si_bir"])
 
@@ -84,35 +112,77 @@ class water_calc(ttk.Frame):
         # Plot spectra
         for ax in (self.ax1, self.ax2):
             # Long corrected
-            self.raw_spectra.append(ax.plot(self.data.x, self.data.signal.long_corrected, color=self.colors[0], linewidth=1.2))
+            self.raw_spectra.append(
+                ax.plot(
+                    self.data.x,
+                    self.data.signal.long_corrected,
+                    color=self.colors[0],
+                    linewidth=1.2,
+                )
+            )
             # Baseline
-            self.baselines.append(ax.plot(self.data.x, self.data.baseline, linestyle="dashed", color=self.colors[2], linewidth=1.2))
+            self.baselines.append(
+                ax.plot(
+                    self.data.x,
+                    self.data.baseline,
+                    linestyle="dashed",
+                    color=self.colors[2],
+                    linewidth=1.2,
+                )
+            )
             # Baseline corrected
-            self.corrected.append(ax.plot(self.data.x, self.data.signal.baseline_corrected, color=self.colors[1], linewidth=1.2))
-            
+            self.corrected.append(
+                ax.plot(
+                    self.data.x,
+                    self.data.signal.baseline_corrected,
+                    color=self.colors[1],
+                    linewidth=1.2,
+                )
+            )
+
         # Plot baseline interpolation regions
         # Silicate region
-        Si_bir0_polygons = [self.ax1.axvspan(bir[0], bir[1], alpha=0.3, color="gray", edgecolor=None, visible=False) for bir in data_processing.Si_bir_0]
-        Si_bir1_polygons = [self.ax1.axvspan(bir[0], bir[1], alpha=0.3, color="gray", edgecolor=None, visible=False) for bir in data_processing.Si_bir_1]
+        Si_bir0_polygons = [
+            self.ax1.axvspan(
+                bir[0], bir[1], alpha=0.3, color="gray", edgecolor=None, visible=False
+            )
+            for bir in data_processing.Si_bir_0
+        ]
+        Si_bir1_polygons = [
+            self.ax1.axvspan(
+                bir[0], bir[1], alpha=0.3, color="gray", edgecolor=None, visible=False
+            )
+            for bir in data_processing.Si_bir_1
+        ]
         self.Si_bir_polygons = [Si_bir0_polygons, Si_bir1_polygons]
         for polygon in self.Si_bir_polygons[self.Si_birs_select]:
             polygon.set_visible(True)
         # Water region
-        self.H2O_bir_polygons = [self.ax2.axvspan(bir[0], bir[1], alpha=0.3, color="gray") for bir in H2O_bir]
-        self.H2O_bir_lines = [self.ax2.axvline(x, color="k", linewidth=1, visible=False) for x in [self.H2O_left, self.H2O_right]]
+        self.H2O_bir_polygons = [
+            self.ax2.axvspan(bir[0], bir[1], alpha=0.3, color="gray") for bir in H2O_bir
+        ]
+        self.H2O_bir_lines = [
+            self.ax2.axvline(x, color="k", linewidth=1, visible=False)
+            for x in [self.H2O_left, self.H2O_right]
+        ]
 
         # Connect mouse events to callback functions
-        self.fig.canvas.mpl_connect('button_press_event', self._on_click)
-        self.fig.canvas.mpl_connect('button_release_event', self._on_release)
-        self.fig.canvas.mpl_connect('motion_notify_event', self._on_motion)
+        self.fig.canvas.mpl_connect("button_press_event", self._on_click)
+        self.fig.canvas.mpl_connect("button_release_event", self._on_release)
+        self.fig.canvas.mpl_connect("motion_notify_event", self._on_motion)
 
         self.canvas.draw()
+        self.save_button.configure(state=tk.NORMAL)
+        self.self.bir_0.configure(state=tk.NORMAL)
+        self.self.bir_1.configure(state=tk.NORMAL)
 
     def update_plot_sample(self, index):
 
         self.data = self.app.data.spectra[index]
 
-        self.H2O_left, self.H2O_right = self.app.data.processing.loc[index, ["water_left", "water_right"]]
+        self.H2O_left, self.H2O_right = self.app.data.processing.loc[
+            index, ["water_left", "water_right"]
+        ]
         self.Si_birs_select = int(self.app.data.processing.loc[index, "Si_bir"])
 
         y_max_Si = np.max(self.data.signal.long_corrected[self.data.x < 1400]) * 1.2
@@ -123,29 +193,35 @@ class water_calc(ttk.Frame):
 
         for i, _ in enumerate([self.ax1, self.ax2]):
             # Long corrected
-            self.raw_spectra[i][0].set_data(self.data.x, self.data.signal.long_corrected)
+            self.raw_spectra[i][0].set_data(
+                self.data.x, self.data.signal.long_corrected
+            )
             # Baseline
             self.baselines[i][0].set_data(self.data.x, self.data.baseline)
             # Baseline corrected
-            self.corrected[i][0].set_data(self.data.x, self.data.signal.baseline_corrected)
+            self.corrected[i][0].set_data(
+                self.data.x, self.data.signal.baseline_corrected
+            )
 
         for line, x in zip(self.H2O_bir_lines, (self.H2O_left, self.H2O_right)):
             line.set_xdata([x, x])
-        
+
         self.update_H2O_birs()
         self.update_Si_birs()
 
-
     def update_H2O_birs(self):
 
-        polygon_left = np.array([[1500, 0.], [1500, 1.], [self.H2O_left, 1.], [self.H2O_left, 0.]])
-        polygon_right = np.array([[self.H2O_right, 0.], [self.H2O_right, 1.], [4000, 1.], [4000, 0.]])
+        polygon_left = np.array(
+            [[1500, 0.0], [1500, 1.0], [self.H2O_left, 1.0], [self.H2O_left, 0.0]]
+        )
+        polygon_right = np.array(
+            [[self.H2O_right, 0.0], [self.H2O_right, 1.0], [4000, 1.0], [4000, 0.0]]
+        )
         H2O_polygons_new = [polygon_left, polygon_right]
         for polygon_old, polygon_new in zip(self.H2O_bir_polygons, H2O_polygons_new):
             polygon_old.set_xy(polygon_new)
 
         self.fig.canvas.draw_idle()
-
 
     def update_Si_birs(self):
 
@@ -155,21 +231,22 @@ class water_calc(ttk.Frame):
             polygon.set_visible(False)
         self.fig.canvas.draw_idle()
 
-
     def recalculate_baseline(self):
 
-        H2O_bir = np.array([[1500, round(self.H2O_left, -1)], [round(self.H2O_right, -1), 4000]])
+        H2O_bir = np.array(
+            [[1500, round(self.H2O_left, -1)], [round(self.H2O_right, -1), 4000]]
+        )
         Si_bir = self.app.data.Si_birs[self.Si_birs_select]
         birs = np.concatenate((Si_bir, H2O_bir))
- 
+
         self.data.baselineCorrect(baseline_regions=birs)
         self.baselines[1][0].set_data(self.data.x, self.data.baseline)
+        self.corrected[1][0].set_data(self.data.x, self.data.signal.baseline_corrected)
 
         self.fig.canvas.draw_idle()
 
-
     def _on_click(self, event):
-        """ 
+        """
         callback method for mouse click event
         :type event: MouseEvent
         """
@@ -178,10 +255,9 @@ class water_calc(ttk.Frame):
             line = self._find_neighbor_line(event)
             if line:
                 self._dragging_line = line
-     
 
     def _on_release(self, event):
-        """ callback method for mouse release event
+        """callback method for mouse release event
         :type event: MouseEvent
         """
         if event.button == 1 and event.inaxes in [self.ax2] and self._dragging_line:
@@ -198,9 +274,8 @@ class water_calc(ttk.Frame):
             self.recalculate_baseline()
             self.update_H2O_birs()
 
-
     def _on_motion(self, event):
-        """ callback method for mouse motion event
+        """callback method for mouse motion event
         :type event: MouseEvent
         """
         if self._dragging_line:
@@ -220,9 +295,8 @@ class water_calc(ttk.Frame):
             self.recalculate_baseline()
             self.update_H2O_birs()
 
-
     def _find_neighbor_line(self, event):
-        """ 
+        """
         Find lines around mouse position
         :rtype: ((int, int)|None)
         :return: (x, y) if there are any point around mouse else None
@@ -233,7 +307,6 @@ class water_calc(ttk.Frame):
             x = line.get_xdata()[0]
             distance = abs(event.xdata - x)
             if distance < distance_threshold:
-                nearest_line =  line
+                nearest_line = line
                 self._dragging_line_id = i
         return nearest_line
-            

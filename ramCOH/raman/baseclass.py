@@ -22,7 +22,7 @@ class RamanProcessing:
         self.x = f.trim_sort(x, y)[0]
         self.signal = signal(f.trim_sort(x, y)[1])
         self.laser = laser
-        self.__processing = {
+        self._processing = {
             "baseline_corrected": False,
             "normalised": False,
             "smoothed": False,
@@ -31,7 +31,7 @@ class RamanProcessing:
 
     @property
     def processing(self):
-        return self.__processing
+        return self._processing
 
 
     def smooth(self, smoothType="Gaussian", kernelWidth=9, **kwargs):
@@ -54,7 +54,7 @@ class RamanProcessing:
                 shortened = value[(kernelWidth - 1) // 2 : -(kernelWidth - 1) // 2]
                 setattr(self.signal, name, shortened)
 
-        self.__processing["smoothed"] = True
+        self._processing["smoothed"] = True
         self._spectrumSelect = "smooth"
 
     def baselineCorrect(self, baseline_regions=None, smooth_factor=1, **kwargs):
@@ -85,7 +85,7 @@ class RamanProcessing:
         baseline_corrected = spectrum - self.baseline
         setattr(self.signal, "baseline_corrected", baseline_corrected)
 
-        self.__processing["baseline_corrected"] = True
+        self._processing["baseline_corrected"] = True
 
 
     def calculate_noise(self, baseline_regions=None):
@@ -109,7 +109,7 @@ class RamanProcessing:
         # normalisation to maximum intensity
         normalised = spectrum * 100 / spectrum.max()
         setattr(self.signal, "normalised", normalised)
-        self.__processing["normalised"] = True
+        self._processing["normalised"] = True
         self._spectrumSelect = "normalised"
 
     def fitPeaks(self, peak_prominence=3, fit_window=12, curve="GL", **kwargs):

@@ -41,10 +41,10 @@ class main_window:
         root.title("ramCOH by T. D. van Gerve")
 
         # Set some geometries
-        root.geometry("800x900")
+        root.geometry("1000x900")
         root.resizable(True, True)
         sizegrip = ttk.Sizegrip(root)
-        sizegrip.grid(row=0, sticky=("se"))
+        sizegrip.grid(row=7, sticky=("se"))
         root.rowconfigure(0, weight=1)
         root.columnconfigure(3, weight=1)
 
@@ -112,10 +112,10 @@ class main_window:
         sample_scroll.grid(row=0, column=2, sticky=("ns"))
         self.sample_list["yscrollcommand"] = sample_scroll.set
         # Buttons to move through samples
-        ttk.Button(samples, text="Previous", command=self.previous_sample).grid(
-            row=6, column=0
-        )
-        ttk.Button(samples, text="Next", command=self.next_sample).grid(row=6, column=1)
+        self.button_next = ttk.Button(samples, text="Previous", state=tk.DISABLED, command=self.previous_sample)
+        self.button_next.grid(row=6, column=0, padx=5, pady=5)
+        self.button_previous = ttk.Button(samples, text="Next", state=tk.DISABLED, command=self.next_sample)
+        self.button_previous.grid(row=6, column=1, padx=5, pady=5)
 
         # Select a sample from the list
         self.sample = None
@@ -132,6 +132,8 @@ class main_window:
         self.samplesVar.set(list(self.data.names))
         self.menu_file.entryconfigure("Export data", state=tk.NORMAL)
         self.sample_list.configure(state=tk.NORMAL)
+        self.button_next.configure(state=tk.NORMAL)
+        self.button_previous.configure(state=tk.NORMAL)
         self.sample_list.selection_set(first=0)
         self.water_calc.initiate_plot(0)
 

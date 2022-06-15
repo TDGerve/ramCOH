@@ -17,7 +17,7 @@ class H2O(RamanProcessing):
     def __init__(self, x, y, **kwargs):
 
         super().__init__(x, y, **kwargs)
-        self.processing.update(
+        self._processing.update(
             {"long_corrected": False, "interpolated": False, "olivine_corrected": False}
         )
 
@@ -32,7 +32,7 @@ class H2O(RamanProcessing):
         setattr(self.signal, "long_corrected", long_corrected)
         # self.LC = 1
         self._spectrumSelect = "long_corrected"
-        self.processing["long_corrected"] = True
+        self._processing["long_corrected"] = True
 
     def interpolate(self, *, interpolate=[780, 900], smooth=1e-6, **kwargs):
 
@@ -74,7 +74,7 @@ class H2O(RamanProcessing):
         )
 
         self._spectrumSelect = "interpolated"
-        self.processing["interpolated"] = True
+        self._processing["interpolated"] = True
 
     def extract_olivine(
         self, olivine_x, olivine_y, *, peak_prominence=10, smooth=1e-6, **kwargs
@@ -155,7 +155,7 @@ class H2O(RamanProcessing):
         olivine_corrected = spectrum - (self.olivine / self.olivine_scale)
         setattr(self.signal, "olivine_corrected", olivine_corrected)
         self._spectrumSelect = "olivine_corrected"
-        self.processing["olivine_corrected"] = True
+        self._processing["olivine_corrected"] = True
 
         self.olivinePeaks = [
             {"center": i, "amplitude": j, "width": k, "shape": l, "baselevel": m}
