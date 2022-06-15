@@ -27,11 +27,19 @@ class water_calc(ttk.Frame):
         plot_frame = ttk.Frame(self)
         buttons_frame = ttk.Frame(self)
         plot_frame.grid(row=0, column=0, columnspan=5, rowspan=8, sticky=("nesw"))
-        buttons_frame.grid(row=0, column=5, columnspan=1, rowspan=8, sticky=("nesw"))
+        buttons_frame.grid(row=0, column=5, columnspan=2, rowspan=8, sticky=("nesw"))
+        # Plot frame geometry
         plot_frame.rowconfigure(0, weight=1)
         plot_frame.columnconfigure(0, weight=4)
+        # Button frame geometry
+        for i in (3, 4, 5, 6):
+            buttons_frame.rowconfigure(i, weight=8)
         buttons_frame.rowconfigure(0, weight=1)
+        buttons_frame.rowconfigure(2, weight=4)
+        buttons_frame.rowconfigure(7, weight=4)
+
         buttons_frame.columnconfigure(0, weight=1)
+        buttons_frame.columnconfigure(1, weight=1)
 
         # Radiobuttons
         bir_var = DoubleVar()
@@ -41,11 +49,43 @@ class water_calc(ttk.Frame):
         self.bir_1 = ttk.Radiobutton(
             buttons_frame, text="1 BIR", variable=bir_var, value=1, state=tk.DISABLED
         )
-        self.bir_0.grid(row=0, column=0, sticky=("news"), padx=5, pady=5)
-        self.bir_1.grid(row=1, column=0, sticky=("news"), padx=5, pady=5)
+        self.bir_0.grid(row=0, column=0, columnspan=2, sticky=("ews"), padx=5, pady=5)
+        self.bir_1.grid(row=1, column=0, columnspan=2, sticky=("new"), padx=5, pady=5)
+
         # Save button
         self.save_button = ttk.Button(buttons_frame, text="Save", state=tk.DISABLED)
-        self.save_button.grid(row=2, column=0, sticky=("news"), padx=5, pady=5)
+        self.save_button.grid(row=7, column=0, columnspan=2, sticky=("ew"), padx=5, pady=5)
+
+        # Text widgets
+        Si_label = tk.Text(buttons_frame, width=7, height=1, font=("verdana", 18))
+        Si_label.grid(row=2, column=0, sticky=("sew"))
+        H2O_label = tk.Text(buttons_frame, width=7, height=2, font=("verdana", 18))
+        H2O_label.grid(row=5, column=0, sticky=("sew"))
+        # Si text
+        Si_label.insert(tk.END, "AreaSi")
+        Si_label.tag_add("subscript", "1.4", "1.6")
+        Si_label.tag_configure("subscript", offset=-4, font=("verdana", 12, "italic"))
+        Si_label.configure(state=tk.DISABLED)
+        # H2O text
+        H2O_label.insert(tk.END, "AreaH2O")
+        H2O_label.tag_add("subscript", "1.4", "1.7")
+        H2O_label.tag_configure("subscript", offset=-4, font=("verdana", 12, "italic"))
+        H2O_label.tag_remove("subscript", "1.5", "1.6")
+        H2O_label.tag_add("subsubscript", "1.5", "1.6")
+        H2O_label.tag_configure("subsubscript", offset=-8, font=("verdana", 10, "italic"))
+        H2O_label.configure(state=tk.DISABLED)
+
+        # Label widgets
+        Si_var = tk.DoubleVar()
+        H2O_var = tk.DoubleVar()
+        Si_var.set(2)
+        H2O_var.set(5)
+        self.Si_area_label = ttk.Label(buttons_frame, textvariable=Si_var, font=("verdana", 18))
+        self.Si_area_label.grid(row=3, column=0, sticky=("new"))
+        self.H2O_area_label = ttk.Label(buttons_frame, textvariable=H2O_var, font=("verdana", 18))
+        self.H2O_area_label.grid(row=6, column=0, sticky=("new"))
+
+        
 
         # Create plot canvas
         self.colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
@@ -173,8 +213,8 @@ class water_calc(ttk.Frame):
 
         self.canvas.draw()
         self.save_button.configure(state=tk.NORMAL)
-        self.self.bir_0.configure(state=tk.NORMAL)
-        self.self.bir_1.configure(state=tk.NORMAL)
+        self.bir_0.configure(state=tk.NORMAL)
+        self.bir_1.configure(state=tk.NORMAL)
 
     def update_plot_sample(self, index):
 
