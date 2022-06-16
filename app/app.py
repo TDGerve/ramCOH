@@ -1,7 +1,10 @@
 import os, glob
+from turtle import color
+import webbrowser
 import pandas as pd
 import tkinter as tk
 from tkinter import ttk
+
 # Import all app elements
 from settings import settings
 from data_processing import data_processing
@@ -11,6 +14,7 @@ from subtraction import subtraction
 
 # Some plot settings
 import meltInc.plotting as p
+
 fontsize = 6
 p.layout(
     colors=p.colors.bella,
@@ -59,15 +63,22 @@ class main_window:
         root["menu"] = menubar
         self.menu_file = tk.Menu(menubar)
         menu_settings = tk.Menu(menubar)
+        menu_help = tk.Menu(menubar)
         menubar.add_cascade(menu=self.menu_file, label="File")
         menubar.add_cascade(menu=menu_settings, label="Settings")
+        menubar.add_cascade(menu=menu_help, label="Help")
         # File menu
         self.menu_file.add_command(label="Load data", command=self.load_data)
         self.menu_file.add_command(label="Export data", command=self.export_data)
         # disable data export on intialisation
         self.menu_file.entryconfigure("Export data", state=tk.DISABLED)
+        self.menu_file.entryconfigure("Export data", state=tk.DISABLED)
         # Settings menu
         menu_settings.add_command(label="Settings", command=self.settings.open_window)
+        # Help menu
+        menu_help.add_command(
+            label="Contact", command=lambda: self.contact(parent=root)
+        )
 
         ##### CREATE FRAMES #####
         # Create the two main frames
@@ -103,7 +114,11 @@ class main_window:
         # List with all samples
         self.samplesVar = tk.StringVar(value=[])
         self.sample_list = tk.Listbox(
-            samples, listvariable=self.samplesVar, selectmode=tk.BROWSE, state=tk.DISABLED
+            samples,
+            listvariable=self.samplesVar,
+            selectmode=tk.BROWSE,
+            font=(self.font, "16"),
+            state=tk.DISABLED,
         )
         self.sample_list.grid(column=0, row=0, columnspan=2, rowspan=6, sticky=("nesw"))
         # Scroll bar for the samples list
@@ -113,9 +128,13 @@ class main_window:
         sample_scroll.grid(row=0, column=2, sticky=("ns"))
         self.sample_list["yscrollcommand"] = sample_scroll.set
         # Buttons to move through samples
-        self.button_next = ttk.Button(samples, text="Previous", state=tk.DISABLED, command=self.previous_sample)
+        self.button_next = ttk.Button(
+            samples, text="Previous", state=tk.DISABLED, command=self.previous_sample
+        )
         self.button_next.grid(row=6, column=0, padx=5, pady=5)
-        self.button_previous = ttk.Button(samples, text="Next", state=tk.DISABLED, command=self.next_sample)
+        self.button_previous = ttk.Button(
+            samples, text="Next", state=tk.DISABLED, command=self.next_sample
+        )
         self.button_previous.grid(row=6, column=1, padx=5, pady=5)
 
         # Select a sample from the list
@@ -164,12 +183,52 @@ class main_window:
             self.select_sample(self.sample_list.curselection())
 
     def export_data(self):
-        data = pd.concat([self.data.processing, self.data.results.drop(columns=["name"])], axis=1)
+        data = pd.concat(
+            [self.data.processing, self.data.results.drop(columns=["name"])], axis=1
+        )
         try:
             with tk.filedialog.asksaveasfile(mode="w", defaultextension=".csv") as file:
                 data.to_csv(file.name, index=False)
         except AttributeError:
             print("Saving cancelled")
+
+    def contact(self, parent):
+        def link(event):
+            webbrowser.open_new(event.widget.cget("text"))
+
+        popup = tk.Toplevel(parent)
+        popup.title("Contact")
+        window = ttk.Frame(popup)
+        window.grid(column=0, row=0, sticky=("nesw"))
+        for i in (0, 2):
+            window.columnconfigure(i, weight=1)
+            window.rowconfigure(i, weight=1)
+        help_string = "For information, questions or assistance, catch me at:"
+        github_link = "https://github.com/TDGerve/ramCOH"
+        email_string = "thomasvangerve@gmail.com"
+
+        font = (self.font, "18")
+        ttk.Label(window, text=help_string, font=font, anchor="center").grid(
+            row=0, column=0, sticky=("nesw")
+        )
+        ttk.Label(window, text=email_string, font=font, anchor="center").grid(
+            row=2, column=0, sticky=("nesw")
+        )
+        github = ttk.Label(
+            window,
+            text=github_link,
+            foreground="blue",
+            cursor="hand2",
+            font=font,
+            anchor="center",
+        )
+        github.grid(row=1, column=0, sticky=("nesw"))
+        github.bind("<Button-1>", link)
+
+        for child in window.winfo_children():
+            child.grid_configure(padx=50, pady=10)
+
+        popup.attributes("-topmost", True)
 
 
 def main():

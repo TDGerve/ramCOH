@@ -41,6 +41,7 @@ class settings:
         )
 
     def __init__(self, parent, app):
+        self.app = app
         self.parent = parent
         self.name_separator = tk.StringVar()
         self.laser = tk.DoubleVar()
@@ -52,6 +53,9 @@ class settings:
         parent.tk.call('tk', 'scaling', self.scale)
 
     def open_window(self):
+
+        font = (self.app.font, "16")
+
         popup = tk.Toplevel(self.parent)
         popup.title("Settings")
         window = ttk.Frame(popup)
@@ -62,13 +66,13 @@ class settings:
         laser_temp = tk.DoubleVar()
         separator_temp = tk.StringVar()
         # Create labels
-        ttk.Label(window, text="Laser wavelength (nm)").grid(row=1, column=0)
-        ttk.Label(window, text="File sample name separator").grid(row=3, column=0)
-        ttk.Label(window, text="Current").grid(row=0, column=1)
-        ttk.Label(window, text="New").grid(row=0, column=2)
-        ttk.Label(window, textvariable=self.laser).grid(row=1, column=1)
-        ttk.Label(window, textvariable=self.name_separator).grid(row=3, column=1)
-        ttk.Label(window, text="Press Enter to store").grid(
+        ttk.Label(window, text="Laser wavelength (nm)", font=font).grid(row=1, column=0)
+        ttk.Label(window, text="File sample name separator", font=font).grid(row=3, column=0)
+        ttk.Label(window, text="Current", font=font).grid(row=0, column=1)
+        ttk.Label(window, text="New", font=font).grid(row=0, column=2)
+        ttk.Label(window, textvariable=self.laser, font=font).grid(row=1, column=1)
+        ttk.Label(window, textvariable=self.name_separator, font=font).grid(row=3, column=1)
+        ttk.Label(window, text="Press Enter to store", font=font).grid(
             row=4, column=0, columnspan=3, sticky=("nesw")
         )
         # Create entry fields

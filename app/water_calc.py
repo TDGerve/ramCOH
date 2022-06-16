@@ -43,13 +43,15 @@ class water_calc(ttk.Frame):
         plot_frame.rowconfigure(0, weight=1)
         plot_frame.columnconfigure(0, weight=4)
         # Button frame geometry
-        buttons_frame.rowconfigure(0, weight=1)
-        buttons_frame.rowconfigure(4, weight=4)
-        buttons_frame.rowconfigure(2, weight=3)
-        for i in (3, 5, 6):
-            buttons_frame.rowconfigure(i, weight=1)
-        buttons_frame.rowconfigure(7, weight=2)
-        buttons_frame.rowconfigure(8, weight=2)
+        buttons_frame.rowconfigure(0, weight=1) #birs rowspan 2
+        buttons_frame.rowconfigure(1, weight=1)
+        buttons_frame.rowconfigure(2, weight=0)
+        buttons_frame.rowconfigure(3, weight=4)
+        buttons_frame.rowconfigure(4, weight=1) #areas
+        buttons_frame.rowconfigure(5, weight=2) #baseline
+        buttons_frame.rowconfigure(6, weight=0)
+        buttons_frame.rowconfigure(7, weight=0)
+        buttons_frame.rowconfigure(8, weight=1) #save
 
         # buttons_frame.columnconfigure(0, weight=1
         for i in range(3):
@@ -57,29 +59,34 @@ class water_calc(ttk.Frame):
 
         widget_width = 220
         ###### RADIOBUTTONS #####
+        bir_label = ttk.Label(text="Baseline interpolation\nregions", justify=tk.LEFT, font=(self.app.font, 16, "bold"))
+        bir_frame = ttk.Labelframe(
+            buttons_frame, labelwidget=bir_label, width=widget_width, height=60
+        )
+        bir_frame.grid(row=0, column=0, columnspan=2, rowspan=2, sticky=("new"), pady=10)
         self.bir_var = DoubleVar()
         self.bir_0 = ttk.Radiobutton(
-            buttons_frame, text="2 BIRs", variable=self.bir_var, value=0, command=self.update_Si_birs, state=tk.DISABLED
+            bir_frame, text="2 BIRs", variable=self.bir_var, value=0, command=self.update_Si_birs, state=tk.DISABLED
         )
         self.bir_1 = ttk.Radiobutton(
-            buttons_frame, text="1 BIR", variable=self.bir_var, value=1, command=self.update_Si_birs, state=tk.DISABLED
+            bir_frame, text="1 BIR", variable=self.bir_var, value=1, command=self.update_Si_birs, state=tk.DISABLED
         )
         self.bir_0.grid(row=0, column=0, columnspan=2, sticky=("ews"), padx=5, pady=5)
         self.bir_1.grid(row=1, column=0, columnspan=2, sticky=("new"), padx=5, pady=5)
 
         ###### AREA DISPLAY WIDGETS #####
-        label = ttk.Label(text="Calculated area", font=(self.app.font, 16, "bold"))
+        area_label = ttk.Label(text="Calculated area", font=(self.app.font, 16, "bold"))
         areas_frame = ttk.Labelframe(
-            buttons_frame, labelwidget=label, width=widget_width, height=100
+            buttons_frame, labelwidget=area_label, width=widget_width, height=140
         )
-        areas_frame.grid(row=4, column=0, columnspan=2, sticky=("ew"))
+        areas_frame.grid(row=4, column=0, columnspan=2, sticky=("sew"))
         # force the size of all child widgets to the frame width
         areas_frame.grid_propagate(0)
-        for i in range(2):
+        for i in range(3):
             areas_frame.rowconfigure(i, weight=1)
             areas_frame.columnconfigure(i, weight=1)
         # Text widgets
-        font = (self.app.font, 14, "italic")
+        font = (self.app.font, 16, "italic")
         subfont = (self.app.font, 8, "italic")
         Si_label = tk.Text(areas_frame, width=7, height=1, font=font)
         H2OSi_label = tk.Text(areas_frame, width=7, height=1, font=font)
@@ -136,7 +143,7 @@ class water_calc(ttk.Frame):
         ###### BASELINE SMOOTHING WIDGETS #####
         baseline_label = ttk.Label(text="Baseline", font=(self.app.font, 16, "bold"))
         baseline_frame = ttk.Labelframe(
-            buttons_frame, labelwidget=baseline_label, width=widget_width, height=80
+            buttons_frame, labelwidget=baseline_label, width=widget_width, height=20
         )
         baseline_frame.grid(row=5, column=0, columnspan=2, sticky=("nesw"))
         baseline_frame.grid_propagate(0)
@@ -161,6 +168,7 @@ class water_calc(ttk.Frame):
             textvariable=self.smoothing_var,
             takefocus=1,
             width=10,
+            font=font,
         )
         baseline_set = ttk.Button(baseline_frame, text="Set", command=self.set_baseline_smoothing)
         smoothing_label.grid(row=0, column=0, sticky=("w"))
@@ -174,7 +182,7 @@ class water_calc(ttk.Frame):
         ###### SAVE BUTTON #####
         self.save_button = ttk.Button(buttons_frame, text="Save sample", command=self.save_sample, state=tk.DISABLED)
         self.save_button.grid(
-            row=8, column=0, columnspan=2, sticky=("ew"), padx=5, pady=5
+            row=8, column=0, columnspan=2, sticky=("sew"), padx=5, pady=45
         )
 
         ##### PLOT CANVAS #####
