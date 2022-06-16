@@ -1,4 +1,5 @@
 import os, glob
+import pandas as pd
 import tkinter as tk
 from tkinter import ttk
 # Import all app elements
@@ -162,8 +163,13 @@ class main_window:
             self.sample_list.see(new)
             self.select_sample(self.sample_list.curselection())
 
-    def export_data():
-        return
+    def export_data(self):
+        data = pd.concat([self.data.processing, self.data.results.drop(columns=["name"])], axis=1)
+        try:
+            with tk.filedialog.asksaveasfile(mode="w", defaultextension=".csv") as file:
+                data.to_csv(file.name, index=False)
+        except AttributeError:
+            print("Saving cancelled")
 
 
 def main():

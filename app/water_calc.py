@@ -14,6 +14,16 @@ class water_calc(ttk.Frame):
         - water region birs scale
         - Store button
     """
+    sample = None
+    sample_index = None
+    # Baseline regions
+    Si_birs_select = None
+    H2O_left = None
+    H2O_right = None
+    # Peak areas
+    Si_area = None
+    H2O_area = None
+    
 
     def __init__(self, parent, app, *args, **kwargs):
 
@@ -24,7 +34,6 @@ class water_calc(ttk.Frame):
         # self.rowconfigure(7, weight=1)
         self.columnconfigure(0, weight=4)
         self.columnconfigure(1, weight=1)
-
 
         plot_frame = ttk.Frame(self)
         buttons_frame = ttk.Frame(self)
@@ -38,38 +47,40 @@ class water_calc(ttk.Frame):
         buttons_frame.rowconfigure(4, weight=4)
         buttons_frame.rowconfigure(2, weight=3)
         for i in (3, 5, 6):
-            buttons_frame.rowconfigure(i, weight=1) 
-        buttons_frame.rowconfigure(7, weight=2)       
+            buttons_frame.rowconfigure(i, weight=1)
+        buttons_frame.rowconfigure(7, weight=2)
         buttons_frame.rowconfigure(8, weight=2)
 
         # buttons_frame.columnconfigure(0, weight=1
         for i in range(3):
             buttons_frame.columnconfigure(i, weight=1)
 
-        # Radiobuttons
-        bir_var = DoubleVar()
+        widget_width = 220
+        ###### RADIOBUTTONS #####
+        self.bir_var = DoubleVar()
         self.bir_0 = ttk.Radiobutton(
-            buttons_frame, text="2 BIRs", variable=bir_var, value=0, state=tk.DISABLED
+            buttons_frame, text="2 BIRs", variable=self.bir_var, value=0, command=self.update_Si_birs, state=tk.DISABLED
         )
         self.bir_1 = ttk.Radiobutton(
-            buttons_frame, text="1 BIR", variable=bir_var, value=1, state=tk.DISABLED
+            buttons_frame, text="1 BIR", variable=self.bir_var, value=1, command=self.update_Si_birs, state=tk.DISABLED
         )
         self.bir_0.grid(row=0, column=0, columnspan=2, sticky=("ews"), padx=5, pady=5)
         self.bir_1.grid(row=1, column=0, columnspan=2, sticky=("new"), padx=5, pady=5)
 
-        # Save button
-        self.save_button = ttk.Button(buttons_frame, text="Save", state=tk.DISABLED)
-        self.save_button.grid(row=8, column=0, columnspan=2, sticky=("ew"), padx=5, pady=5)
-
-        label = ttk.Label(text="Areas", font=(self.app.font, 16, "bold"))
-        areas_frame = ttk.Labelframe(buttons_frame, labelwidget=label)
-        areas_frame.grid(row=4, column=0, columnspan=2, sticky=("e"))
-        for i in range(3):
+        ###### AREA DISPLAY WIDGETS #####
+        label = ttk.Label(text="Calculated area", font=(self.app.font, 16, "bold"))
+        areas_frame = ttk.Labelframe(
+            buttons_frame, labelwidget=label, width=widget_width, height=100
+        )
+        areas_frame.grid(row=4, column=0, columnspan=2, sticky=("ew"))
+        # force the size of all child widgets to the frame width
+        areas_frame.grid_propagate(0)
+        for i in range(2):
             areas_frame.rowconfigure(i, weight=1)
-  
+            areas_frame.columnconfigure(i, weight=1)
         # Text widgets
-        font = (self.app.font , 14, "italic")
-        subfont =(self.app.font, 8, "italic")
+        font = (self.app.font, 14, "italic")
+        subfont = (self.app.font, 8, "italic")
         Si_label = tk.Text(areas_frame, width=7, height=1, font=font)
         H2OSi_label = tk.Text(areas_frame, width=7, height=1, font=font)
         H2O_label = tk.Text(areas_frame, width=7, height=1, font=font)
@@ -89,31 +100,84 @@ class water_calc(ttk.Frame):
         H2OSi_label.tag_add("subscript", "1.1", "1.2")
         H2OSi_label.tag_configure("subscript", offset=-2, font=subfont)
         H2OSi_label.configure(state=tk.DISABLED)
-
         # Label widgets
         self.Si_var = tk.StringVar()
         self.H2O_var = tk.StringVar()
         self.H2OSi_var = tk.StringVar()
         label_width = 8
-        self.Si_area_label = ttk.Label(areas_frame, textvariable=self.Si_var, font=font, width=label_width)
-        self.H2O_area_label = ttk.Label(areas_frame, textvariable=self.H2O_var, font=font, width=label_width)
-        self.H2OSi_area_label = ttk.Label(areas_frame, textvariable=self.H2OSi_var, font=font, width=label_width)
+        self.Si_area_label = ttk.Label(
+            areas_frame, textvariable=self.Si_var, font=font, width=label_width
+        )
+        self.H2O_area_label = ttk.Label(
+            areas_frame, textvariable=self.H2O_var, font=font, width=label_width
+        )
+        self.H2OSi_area_label = ttk.Label(
+            areas_frame, textvariable=self.H2OSi_var, font=font, width=label_width
+        )
+        # Text widgets for units
         Si_units = tk.Text(areas_frame, width=5, height=1, font=font)
         H2O_units = tk.Text(areas_frame, width=5, height=1, font=font)
-
-        self.Si_area_label.grid(row=0, column=1, sticky=("es"))        
+        # Grid widgets
+        self.Si_area_label.grid(row=0, column=1, sticky=("es"))
         self.H2O_area_label.grid(row=1, column=1, sticky=("es"))
         self.H2OSi_area_label.grid(row=2, column=1, sticky=("es"))
         Si_units.grid(row=0, column=2, sticky=("ws"))
         H2O_units.grid(row=1, column=2, sticky=("ws"))
-
+        # Units text
         for text in (Si_units, H2O_units):
             text.insert(tk.END, "x 10-2")
             text.tag_add("superscript", "1.4", "1.7")
             text.tag_configure("superscript", offset=8, font=subfont)
             text.configure(state=tk.DISABLED)
-   
+        # Separator line
+        ttk.Separator(areas_frame, orient=tk.HORIZONTAL).grid(row=0, column=0, columnspan=3, sticky=("sew"))
+        ttk.Separator(areas_frame, orient=tk.HORIZONTAL).grid(row=1, column=0, columnspan=3, sticky=("sew"))
 
+        ###### BASELINE SMOOTHING WIDGETS #####
+        baseline_label = ttk.Label(text="Baseline", font=(self.app.font, 16, "bold"))
+        baseline_frame = ttk.Labelframe(
+            buttons_frame, labelwidget=baseline_label, width=widget_width, height=80
+        )
+        baseline_frame.grid(row=5, column=0, columnspan=2, sticky=("nesw"))
+        baseline_frame.grid_propagate(0)
+        # Configure geometry
+        baseline_frame.rowconfigure(0, weight=1)
+        baseline_frame.rowconfigure(1, weight=1)
+        baseline_frame.columnconfigure(0, weight=1)
+        baseline_frame.columnconfigure(1, weight=1)
+        # Spinbox widget for baseline smoothing
+        self.smoothing_var = tk.StringVar()
+        self.smoothing_var.set(1)
+        smoothing_label = ttk.Label(baseline_frame, text="Smoothing", font=font)
+        # Validate on changing focus
+        self.smoothing_spinbox = ttk.Spinbox(
+            baseline_frame,
+            from_=0.1,
+            to=10,
+            increment=0.1,
+            validate="focus",
+            validatecommand=(self.register(self.validate_smoothing), "%P"),
+            invalidcommand=(self.register(self.invalid_smoothing), "%P"),
+            textvariable=self.smoothing_var,
+            takefocus=1,
+            width=10,
+        )
+        baseline_set = ttk.Button(baseline_frame, text="Set", command=self.set_baseline_smoothing)
+        smoothing_label.grid(row=0, column=0, sticky=("w"))
+        baseline_set.grid(row=1, column=0, columnspan=2, sticky=("ew"))
+        self.smoothing_spinbox.grid(row=0, column=1, sticky=("e"))
+        # Leave some space between the frame and the widgets
+        for child in baseline_frame.winfo_children():
+            child.grid_configure(padx=5, pady=5)
+
+
+        ###### SAVE BUTTON #####
+        self.save_button = ttk.Button(buttons_frame, text="Save sample", command=self.save_sample, state=tk.DISABLED)
+        self.save_button.grid(
+            row=8, column=0, columnspan=2, sticky=("ew"), padx=5, pady=5
+        )
+
+        ##### PLOT CANVAS #####
         # Plot colors
         self.colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
         # Create plot canvas
@@ -153,29 +217,64 @@ class water_calc(ttk.Frame):
         for child in self.winfo_children():
             child.grid_configure(padx=5, pady=5)
 
+    def validate_smoothing(self, value):
+        """
+        Return False if the value is not numeric and reset the validate command if not.
+        Resetting validate is neccessary, because tkinter disables validation after changing 
+        the variable through the invalidate command in order to stop an infinte loop.
+
+        If the value is numerical clip it to 0, 10
+        """
+        try:
+            value_clipped = np.clip(float(value), 0, 100)
+            self.smoothing_var.set(value_clipped)
+            valid = True
+        except ValueError:
+            valid = False
+        if not valid:
+            # self.bell()
+            self.smoothing_spinbox.after_idle(lambda: self.smoothing_spinbox.config(validate="focus"))
+        return valid
+
+    def invalid_smoothing(self, value):
+        self.smoothing_var.set(1)
+
+
+    def set_baseline_smoothing(self):
+        smoothing = float(self.smoothing_var.get())
+        self.app.data.smooth_factor = smoothing
+        self.recalculate_baseline()
+
+    def save_sample(self):
+
+        self.app.data.processing.loc[self.sample_index, "Si_bir"] = self.Si_birs_select
+        self.app.data.processing.loc[self.sample_index, ["water_left", "water_right"]] = round(self.H2O_left, -1), round(self.H2O_right, -1)
+
+        self.app.data.results.loc[self.sample_index, ["SiArea", "H2Oarea"]] = self.Si_area, self.H2O_area
+        self.app.data.results.loc[self.sample_index, "rWS"] = self.H2O_area/ self.Si_area
+
+
     def initiate_plot(self, index):
         """
         Docstring
         """
 
-        self.data = self.app.data.spectra[index]
+        self.sample_index = index
+
+        self.sample = self.app.data.spectra[index]
         self.recalculate_areas()
         self.H2O_left, self.H2O_right = self.app.data.processing.loc[
             index, ["water_left", "water_right"]
         ]
         H2O_bir = np.array([[1500, self.H2O_left], [self.H2O_right, 4000]])
         self.Si_birs_select = int(self.app.data.processing.loc[index, "Si_bir"])
+        self.bir_var.set(self.Si_birs_select)
 
-        y_max_Si = np.max(self.data.signal.long_corrected[self.data.x < 1400]) * 1.2
-        y_max_h2o = np.max(self.data.signal.long_corrected[self.data.x > 2500]) * 1.2
+        y_max_Si = np.max(self.sample.signal.long_corrected[self.sample.x < 1400]) * 1.2
+        y_max_h2o = np.max(self.sample.signal.long_corrected[self.sample.x > 2500]) * 1.2
 
         self.ax1.set_ylim(0, y_max_Si * 1.05)
         self.ax2.set_ylim(0, y_max_h2o)
-
-        # for ax in (self.ax1, self.ax2):
-        #     # Remove old plotted lines
-        #     for i, line in enumerate(ax.get_lines()):
-        #         line.remove()
 
         self.fig.canvas.draw_idle()
 
@@ -184,8 +283,8 @@ class water_calc(ttk.Frame):
             # Long corrected
             self.raw_spectra.append(
                 ax.plot(
-                    self.data.x,
-                    self.data.signal.long_corrected,
+                    self.sample.x,
+                    self.sample.signal.long_corrected,
                     color=self.colors[0],
                     linewidth=1.2,
                 )
@@ -193,8 +292,8 @@ class water_calc(ttk.Frame):
             # Baseline
             self.baselines.append(
                 ax.plot(
-                    self.data.x,
-                    self.data.baseline,
+                    self.sample.x,
+                    self.sample.baseline,
                     linestyle="dashed",
                     color=self.colors[2],
                     linewidth=1.2,
@@ -203,8 +302,8 @@ class water_calc(ttk.Frame):
             # Baseline corrected
             self.corrected.append(
                 ax.plot(
-                    self.data.x,
-                    self.data.signal.baseline_corrected,
+                    self.sample.x,
+                    self.sample.signal.baseline_corrected,
                     color=self.colors[1],
                     linewidth=1.2,
                 )
@@ -236,8 +335,6 @@ class water_calc(ttk.Frame):
             for x in [self.H2O_left, self.H2O_right]
         ]
 
-
-
         # Connect mouse events to callback functions
         self.fig.canvas.mpl_connect("button_press_event", self._on_click)
         self.fig.canvas.mpl_connect("button_release_event", self._on_release)
@@ -254,17 +351,17 @@ class water_calc(ttk.Frame):
         """
         Docstring
         """
-
-        self.data = self.app.data.spectra[index]
-        
+        self.sample_index = index
+        self.sample = self.app.data.spectra[index]
 
         self.H2O_left, self.H2O_right = self.app.data.processing.loc[
             index, ["water_left", "water_right"]
         ]
         self.Si_birs_select = int(self.app.data.processing.loc[index, "Si_bir"])
+        self.bir_var.set(self.Si_birs_select)
 
-        y_max_Si = np.max(self.data.signal.long_corrected[self.data.x < 1400]) * 1.2
-        y_max_h2o = np.max(self.data.signal.long_corrected[self.data.x > 2500]) * 1.2
+        y_max_Si = np.max(self.sample.signal.long_corrected[self.sample.x < 1400]) * 1.2
+        y_max_h2o = np.max(self.sample.signal.long_corrected[self.sample.x > 2500]) * 1.2
 
         self.ax1.set_ylim(0, y_max_Si * 1.05)
         self.ax2.set_ylim(0, y_max_h2o)
@@ -272,21 +369,22 @@ class water_calc(ttk.Frame):
         for i, _ in enumerate([self.ax1, self.ax2]):
             # Long corrected
             self.raw_spectra[i][0].set_data(
-                self.data.x, self.data.signal.long_corrected
+                self.sample.x, self.sample.signal.long_corrected
             )
             # Baseline
-            self.baselines[i][0].set_data(self.data.x, self.data.baseline)
+            self.baselines[i][0].set_data(self.sample.x, self.sample.baseline)
             # Baseline corrected
             self.corrected[i][0].set_data(
-                self.data.x, self.data.signal.baseline_corrected
+                self.sample.x, self.sample.signal.baseline_corrected
             )
 
         for line, x in zip(self.H2O_bir_lines, (self.H2O_left, self.H2O_right)):
             line.set_xdata([x, x])
 
-        self.recalculate_areas()
+        self.recalculate_baseline()
         self.update_H2O_birs()
         self.update_Si_birs()
+        self.recalculate_areas()
 
     def update_H2O_birs(self):
         """
@@ -309,17 +407,22 @@ class water_calc(ttk.Frame):
         """
         Docstring
         """
-
+        self.Si_birs_select = int(self.bir_var.get())
+ 
         for polygon in self.Si_bir_polygons[self.Si_birs_select]:
             polygon.set_visible(True)
         for polygon in self.Si_bir_polygons[abs(self.Si_birs_select - 1)]:
             polygon.set_visible(False)
+        self.recalculate_baseline()
+        self.recalculate_areas()
         self.fig.canvas.draw_idle()
+
 
     def recalculate_baseline(self):
         """
         Docstring
         """
+        smooth_factor = self.app.data.smooth_factor
 
         H2O_bir = np.array(
             [[1500, round(self.H2O_left, -1)], [round(self.H2O_right, -1), 4000]]
@@ -327,9 +430,10 @@ class water_calc(ttk.Frame):
         Si_bir = self.app.data.Si_birs[self.Si_birs_select]
         birs = np.concatenate((Si_bir, H2O_bir))
 
-        self.data.baselineCorrect(baseline_regions=birs)
-        self.baselines[1][0].set_data(self.data.x, self.data.baseline)
-        self.corrected[1][0].set_data(self.data.x, self.data.signal.baseline_corrected)        
+        self.sample.baselineCorrect(baseline_regions=birs, smooth_factor=smooth_factor)
+        for i, _ in enumerate([self.ax1, self.ax2]):
+            self.baselines[i][0].set_data(self.sample.x, self.sample.baseline)
+            self.corrected[i][0].set_data(self.sample.x, self.sample.signal.baseline_corrected)
 
         self.recalculate_areas()
         self.fig.canvas.draw_idle()
@@ -339,8 +443,8 @@ class water_calc(ttk.Frame):
         Docstring
         """
 
-        self.data.calculate_SiH2Oareas()
-        self.Si_area, self.H2O_area = self.data.SiH2Oareas
+        self.sample.calculate_SiH2Oareas()
+        self.Si_area, self.H2O_area = self.sample.SiH2Oareas
         self.Si_var.set(f"{self.Si_area * 1e2: .3f}")
         self.H2O_var.set(f"{self.H2O_area * 1e2: .3f}")
         self.H2OSi_var.set(f"{(self.H2O_area / self.Si_area): .3f}")
