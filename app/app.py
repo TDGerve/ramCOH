@@ -12,6 +12,8 @@ from water_calc import water_calc
 from interpolation import interpolation
 from subtraction import subtraction
 
+
+# MOVE THE PLOT LAYOUT SETTINGS TO SOMEWHERE WITHIN THE CODE AND REMOVE THE MELTINC DEPENDENCY
 # Some plot settings
 import meltInc.plotting as p
 
@@ -30,7 +32,7 @@ class main_window:
         """
         Main window
         """
-
+        
         # Set theme
         style = ttk.Style()
         root.tk.call("source", f"{os.getcwd()}/theme/breeze.tcl")
@@ -46,6 +48,7 @@ class main_window:
         root.title("ramCOH by T. D. van Gerve")
 
         # Set some geometries
+        root.minsize(900, 810)
         root.geometry("1000x900")
         root.resizable(True, True)
         sizegrip = ttk.Sizegrip(root)
@@ -74,7 +77,7 @@ class main_window:
         self.menu_file.entryconfigure("Export data", state=tk.DISABLED)
         self.menu_file.entryconfigure("Export data", state=tk.DISABLED)
         # Settings menu
-        menu_settings.add_command(label="Settings", command=self.settings.open_window)
+        menu_settings.add_command(label="Settings", command=self.settings.open_general_settings)
         # Help menu
         menu_help.add_command(
             label="Contact", command=lambda: self.contact(parent=root)
@@ -117,7 +120,7 @@ class main_window:
             samples,
             listvariable=self.samplesVar,
             selectmode=tk.BROWSE,
-            font=(self.font, "16"),
+            font=(self.font, "14"),
             state=tk.DISABLED,
         )
         self.sample_list.grid(column=0, row=0, columnspan=2, rowspan=6, sticky=("nesw"))

@@ -2,18 +2,34 @@ import os
 import ramCOH as ram
 import pandas as pd
 import numpy as np
+import json
+
+
+def import_birs():
+    with open("birs.json") as f:
+        birs_all = json.load(f)
+
+    birs = []
+    labels = []
+
+    for name, bir in birs_all.items():
+        if bir["use"]:
+            labels.append(name)
+            birs.append(np.array(bir["birs"]))
+
+    return labels, birs
+
+
 
 class data_processing:
 
-    # Silicate baseline interpolation regions
-    Si_bir_0 = np.array([[20, 250], [640, 655], [800, 810], [1220, 1600]])
-    Si_bir_1 = np.array([[20, 250], [640, 700], [1220, 1600]])
-    Si_birs = [Si_bir_0, Si_bir_1]
-    Si_birs_labels = ["2 birs", "1 bir"]
-
     smooth_factor = 1
 
+    # Get baseline interpolation regions
+    Si_birs_labels, Si_birs = import_birs()
+
     def __init__(self, files, settings, type="H2O"):
+        # Parse files
         separator = settings.name_separator.get()
         self.files = files
         self.names = ()
@@ -40,6 +56,9 @@ class data_processing:
         self.processing["Si_bir"] = int(0)
         self.processing["water_left"] = int(2800)
         self.processing["water_right"] = int(3850)
+
+        # # Get baseline interpolation regions
+        # self.Si_birs_labels, self.Si_birs = import_birs()
 
     def preprocess(self):
         for i, f in enumerate(self.files):

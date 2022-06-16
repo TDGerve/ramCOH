@@ -8,12 +8,8 @@ from data_processing import data_processing
 
 
 class water_calc(ttk.Frame):
-    """
-    widgets needed:
-        - silicate region birs radiobuttons
-        - water region birs scale
-        - Store button
-    """
+    """ """
+
     sample = None
     sample_index = None
     # Baseline regions
@@ -23,7 +19,6 @@ class water_calc(ttk.Frame):
     # Peak areas
     Si_area = None
     H2O_area = None
-    
 
     def __init__(self, parent, app, *args, **kwargs):
 
@@ -43,15 +38,15 @@ class water_calc(ttk.Frame):
         plot_frame.rowconfigure(0, weight=1)
         plot_frame.columnconfigure(0, weight=4)
         # Button frame geometry
-        buttons_frame.rowconfigure(0, weight=1) #birs rowspan 2
+        buttons_frame.rowconfigure(0, weight=1)  # birs rowspan 2
         buttons_frame.rowconfigure(1, weight=1)
         buttons_frame.rowconfigure(2, weight=0)
         buttons_frame.rowconfigure(3, weight=4)
-        buttons_frame.rowconfigure(4, weight=1) #areas
-        buttons_frame.rowconfigure(5, weight=2) #baseline
+        buttons_frame.rowconfigure(4, weight=1)  # areas
+        buttons_frame.rowconfigure(5, weight=1)  # baseline
         buttons_frame.rowconfigure(6, weight=0)
         buttons_frame.rowconfigure(7, weight=0)
-        buttons_frame.rowconfigure(8, weight=1) #save
+        buttons_frame.rowconfigure(8, weight=1)  # save
 
         # buttons_frame.columnconfigure(0, weight=1
         for i in range(3):
@@ -59,20 +54,31 @@ class water_calc(ttk.Frame):
 
         widget_width = 220
         ###### RADIOBUTTONS #####
-        bir_label = ttk.Label(text="Baseline interpolation\nregions", justify=tk.LEFT, font=(self.app.font, 16, "bold"))
+        bir_label = ttk.Label(
+            text="Baseline interpolation\nregions",
+            justify=tk.LEFT,
+            font=(self.app.font, 16, "bold"),
+        )
+        number_of_buttons = len(data_processing.Si_birs_labels)
         bir_frame = ttk.Labelframe(
-            buttons_frame, labelwidget=bir_label, width=widget_width, height=60
+            buttons_frame, labelwidget=bir_label, width=widget_width, height=30 * number_of_buttons
         )
-        bir_frame.grid(row=0, column=0, columnspan=2, rowspan=2, sticky=("new"), pady=10)
+        bir_frame.grid(
+            row=0, column=0, columnspan=2, rowspan=2, sticky=("new"), pady=10
+        )
         self.bir_var = DoubleVar()
-        self.bir_0 = ttk.Radiobutton(
-            bir_frame, text="2 BIRs", variable=self.bir_var, value=0, command=self.update_Si_birs, state=tk.DISABLED
-        )
-        self.bir_1 = ttk.Radiobutton(
-            bir_frame, text="1 BIR", variable=self.bir_var, value=1, command=self.update_Si_birs, state=tk.DISABLED
-        )
-        self.bir_0.grid(row=0, column=0, columnspan=2, sticky=("ews"), padx=5, pady=5)
-        self.bir_1.grid(row=1, column=0, columnspan=2, sticky=("new"), padx=5, pady=5)
+        self.bir_radio_buttons = []
+        for i, name in enumerate(data_processing.Si_birs_labels):
+            radio = ttk.Radiobutton(
+                    bir_frame,
+                    text=name,
+                    variable=self.bir_var,
+                    value=i,
+                    command=self.update_Si_birs,
+                    state=tk.DISABLED)
+            radio.grid(row=i, column=0, columnspan=2, sticky=(""), padx=5, pady=5)    
+            self.bir_radio_buttons.append(radio)
+
 
         ###### AREA DISPLAY WIDGETS #####
         area_label = ttk.Label(text="Calculated area", font=(self.app.font, 16, "bold"))
@@ -137,13 +143,17 @@ class water_calc(ttk.Frame):
             text.tag_configure("superscript", offset=8, font=subfont)
             text.configure(state=tk.DISABLED)
         # Separator line
-        ttk.Separator(areas_frame, orient=tk.HORIZONTAL).grid(row=0, column=0, columnspan=3, sticky=("sew"))
-        ttk.Separator(areas_frame, orient=tk.HORIZONTAL).grid(row=1, column=0, columnspan=3, sticky=("sew"))
+        ttk.Separator(areas_frame, orient=tk.HORIZONTAL).grid(
+            row=0, column=0, columnspan=3, sticky=("sew")
+        )
+        ttk.Separator(areas_frame, orient=tk.HORIZONTAL).grid(
+            row=1, column=0, columnspan=3, sticky=("sew")
+        )
 
         ###### BASELINE SMOOTHING WIDGETS #####
         baseline_label = ttk.Label(text="Baseline", font=(self.app.font, 16, "bold"))
         baseline_frame = ttk.Labelframe(
-            buttons_frame, labelwidget=baseline_label, width=widget_width, height=20
+            buttons_frame, labelwidget=baseline_label, width=widget_width, height=60
         )
         baseline_frame.grid(row=5, column=0, columnspan=2, sticky=("nesw"))
         baseline_frame.grid_propagate(0)
@@ -170,7 +180,9 @@ class water_calc(ttk.Frame):
             width=10,
             font=font,
         )
-        baseline_set = ttk.Button(baseline_frame, text="Set", command=self.set_baseline_smoothing)
+        baseline_set = ttk.Button(
+            baseline_frame, text="Set", command=self.set_baseline_smoothing
+        )
         smoothing_label.grid(row=0, column=0, sticky=("w"))
         baseline_set.grid(row=1, column=0, columnspan=2, sticky=("ew"))
         self.smoothing_spinbox.grid(row=0, column=1, sticky=("e"))
@@ -178,9 +190,13 @@ class water_calc(ttk.Frame):
         for child in baseline_frame.winfo_children():
             child.grid_configure(padx=5, pady=5)
 
-
         ###### SAVE BUTTON #####
-        self.save_button = ttk.Button(buttons_frame, text="Save sample", command=self.save_sample, state=tk.DISABLED)
+        self.save_button = ttk.Button(
+            buttons_frame,
+            text="Save sample",
+            command=self.save_sample,
+            state=tk.DISABLED,
+        )
         self.save_button.grid(
             row=8, column=0, columnspan=2, sticky=("sew"), padx=5, pady=45
         )
@@ -228,7 +244,7 @@ class water_calc(ttk.Frame):
     def validate_smoothing(self, value):
         """
         Return False if the value is not numeric and reset the validate command if not.
-        Resetting validate is neccessary, because tkinter disables validation after changing 
+        Resetting validate is neccessary, because tkinter disables validation after changing
         the variable through the invalidate command in order to stop an infinte loop.
 
         If the value is numerical clip it to 0, 10
@@ -241,12 +257,13 @@ class water_calc(ttk.Frame):
             valid = False
         if not valid:
             # self.bell()
-            self.smoothing_spinbox.after_idle(lambda: self.smoothing_spinbox.config(validate="focus"))
+            self.smoothing_spinbox.after_idle(
+                lambda: self.smoothing_spinbox.config(validate="focus")
+            )
         return valid
 
     def invalid_smoothing(self, value):
         self.smoothing_var.set(1)
-
 
     def set_baseline_smoothing(self):
         smoothing = float(self.smoothing_var.get())
@@ -256,11 +273,17 @@ class water_calc(ttk.Frame):
     def save_sample(self):
 
         self.app.data.processing.loc[self.sample_index, "Si_bir"] = self.Si_birs_select
-        self.app.data.processing.loc[self.sample_index, ["water_left", "water_right"]] = round(self.H2O_left, -1), round(self.H2O_right, -1)
+        self.app.data.processing.loc[
+            self.sample_index, ["water_left", "water_right"]
+        ] = round(self.H2O_left, -1), round(self.H2O_right, -1)
 
-        self.app.data.results.loc[self.sample_index, ["SiArea", "H2Oarea"]] = self.Si_area, self.H2O_area
-        self.app.data.results.loc[self.sample_index, "rWS"] = self.H2O_area/ self.Si_area
-
+        self.app.data.results.loc[self.sample_index, ["SiArea", "H2Oarea"]] = (
+            self.Si_area,
+            self.H2O_area,
+        )
+        self.app.data.results.loc[self.sample_index, "rWS"] = (
+            self.H2O_area / self.Si_area
+        )
 
     def initiate_plot(self, index):
         """
@@ -279,7 +302,9 @@ class water_calc(ttk.Frame):
         self.bir_var.set(self.Si_birs_select)
 
         y_max_Si = np.max(self.sample.signal.long_corrected[self.sample.x < 1400]) * 1.2
-        y_max_h2o = np.max(self.sample.signal.long_corrected[self.sample.x > 2500]) * 1.2
+        y_max_h2o = (
+            np.max(self.sample.signal.long_corrected[self.sample.x > 2500]) * 1.2
+        )
 
         self.ax1.set_ylim(0, y_max_Si * 1.05)
         self.ax2.set_ylim(0, y_max_h2o)
@@ -319,19 +344,23 @@ class water_calc(ttk.Frame):
 
         # Plot baseline interpolation regions
         # Silicate region
-        Si_bir0_polygons = [
-            self.ax1.axvspan(
-                bir[0], bir[1], alpha=0.3, color="gray", edgecolor=None, visible=False
+        self.Si_bir_polygons = []
+
+        for birs in data_processing.Si_birs:
+            self.Si_bir_polygons.append(
+                [
+                    self.ax1.axvspan(
+                        region[0],
+                        region[1],
+                        alpha=0.3,
+                        color="gray",
+                        edgecolor=None,
+                        visible=False,
+                    )
+                    for region in birs
+                ]
             )
-            for bir in data_processing.Si_bir_0
-        ]
-        Si_bir1_polygons = [
-            self.ax1.axvspan(
-                bir[0], bir[1], alpha=0.3, color="gray", edgecolor=None, visible=False
-            )
-            for bir in data_processing.Si_bir_1
-        ]
-        self.Si_bir_polygons = [Si_bir0_polygons, Si_bir1_polygons]
+
         for polygon in self.Si_bir_polygons[self.Si_birs_select]:
             polygon.set_visible(True)
         # Water region
@@ -352,8 +381,9 @@ class water_calc(ttk.Frame):
 
         # Activate buttons
         self.save_button.configure(state=tk.NORMAL)
-        self.bir_0.configure(state=tk.NORMAL)
-        self.bir_1.configure(state=tk.NORMAL)
+        for radio in self.bir_radio_buttons:
+            radio.configure(state=tk.NORMAL)
+
 
     def update_plot_sample(self, index):
         """
@@ -369,7 +399,9 @@ class water_calc(ttk.Frame):
         self.bir_var.set(self.Si_birs_select)
 
         y_max_Si = np.max(self.sample.signal.long_corrected[self.sample.x < 1400]) * 1.2
-        y_max_h2o = np.max(self.sample.signal.long_corrected[self.sample.x > 2500]) * 1.2
+        y_max_h2o = (
+            np.max(self.sample.signal.long_corrected[self.sample.x > 2500]) * 1.2
+        )
 
         self.ax1.set_ylim(0, y_max_Si * 1.05)
         self.ax2.set_ylim(0, y_max_h2o)
@@ -416,7 +448,7 @@ class water_calc(ttk.Frame):
         Docstring
         """
         self.Si_birs_select = int(self.bir_var.get())
- 
+
         for polygon in self.Si_bir_polygons[self.Si_birs_select]:
             polygon.set_visible(True)
         for polygon in self.Si_bir_polygons[abs(self.Si_birs_select - 1)]:
@@ -424,7 +456,6 @@ class water_calc(ttk.Frame):
         self.recalculate_baseline()
         self.recalculate_areas()
         self.fig.canvas.draw_idle()
-
 
     def recalculate_baseline(self):
         """
@@ -435,13 +466,15 @@ class water_calc(ttk.Frame):
         H2O_bir = np.array(
             [[1500, round(self.H2O_left, -1)], [round(self.H2O_right, -1), 4000]]
         )
-        Si_bir = self.app.data.Si_birs[self.Si_birs_select]
+        Si_bir = data_processing.Si_birs[self.Si_birs_select]
         birs = np.concatenate((Si_bir, H2O_bir))
 
         self.sample.baselineCorrect(baseline_regions=birs, smooth_factor=smooth_factor)
         for i, _ in enumerate([self.ax1, self.ax2]):
             self.baselines[i][0].set_data(self.sample.x, self.sample.baseline)
-            self.corrected[i][0].set_data(self.sample.x, self.sample.signal.baseline_corrected)
+            self.corrected[i][0].set_data(
+                self.sample.x, self.sample.signal.baseline_corrected
+            )
 
         self.recalculate_areas()
         self.fig.canvas.draw_idle()

@@ -16,7 +16,7 @@ p.layout(
 
 class layout:
     """
-    plot layout settings
+    layout settings
     """    
 
     def __init__(self, root):
