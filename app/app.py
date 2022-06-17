@@ -30,6 +30,8 @@ p.layout(
 class main_window:
 
     data = None
+    sample_index = None
+    sample_name = None
 
     def __init__(self, root, *args, **kwargs):
         """
@@ -153,9 +155,7 @@ class main_window:
             samples, text="Next", state=tk.DISABLED, command=self.next_sample
         )
         self.button_previous.grid(row=6, column=1, padx=5, pady=5)
-
-        # Select a sample from the list
-        self.sample = None
+        # Bind listobx selection to sample selection
         self.sample_list.bind(
             "<<ListboxSelect>>",
             lambda event: self.select_sample(self.sample_list.curselection()),
@@ -171,9 +171,9 @@ class main_window:
             print("Opening files cancelled by user")
             return
         files = glob.glob(os.path.join(dirname, "*.txt"))
-        self.load_files(files)
+        self.initiate_load_files(files)
 
-    def load_files(self, files):
+    def initiate_load_files(self, files):
         """
         
         """
@@ -190,6 +190,7 @@ class main_window:
             w.configure(state=tk.NORMAL)
         del w
         self.sample_list.selection_set(first=0)
+        self.sample_index = 0
         self.water_calc.initiate_plot(0)
 
     def add_spectra(self):
@@ -205,7 +206,7 @@ class main_window:
             return
 
         if not self.data:
-            self.load_files(filenames)
+            self.initiate_load_files(filenames)
         
         else:
             current_selection = self.sample_list.curselection()
@@ -218,7 +219,8 @@ class main_window:
     def select_sample(self, index):
         if index:
             selection = index[-1]
-            self.sample = self.data.names[selection]
+            self.sample_index = selection
+            self.sample_name = self.data.names[selection]
             self.water_calc.update_plot_sample(selection)
 
     def next_sample(self):
@@ -255,6 +257,11 @@ class main_window:
             print("Saving cancelled")
 
     def export_sample_spectra(self):
+
+        sample = self.data.spectra[self.sample_index]
+        name = self.sample_name
+
+        #CONTINUE HERE
 
         return
 
