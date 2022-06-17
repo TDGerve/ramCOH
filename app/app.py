@@ -1,5 +1,5 @@
+
 import os, glob
-from turtle import color
 import webbrowser
 import pandas as pd
 import tkinter as tk
@@ -28,11 +28,14 @@ p.layout(
 
 
 class main_window:
+
+    data = None
+
     def __init__(self, root, *args, **kwargs):
         """
         Main window
         """
-        
+
         # Set theme
         style = ttk.Style()
         root.tk.call("source", f"{os.getcwd()}/theme/breeze.tcl")
@@ -41,6 +44,7 @@ class main_window:
         style.configure(".", font="helvetica")
         # Grab some theme elements, for passing on to widgets
         self.font = style.lookup(theme, "font")
+        self.fontsize = 13
         self.bgClr = style.lookup(theme, "background")
         # calculate background color to something matplotlib understands
         self.bgClr_plt = tuple((c / 2 ** 16 for c in root.winfo_rgb(self.bgClr)))
@@ -48,7 +52,7 @@ class main_window:
         root.title("ramCOH by T. D. van Gerve")
 
         # Set some geometries
-        root.minsize(900, 810)
+        root.minsize(1000, 900)
         root.geometry("1000x900")
         root.resizable(True, True)
         sizegrip = ttk.Sizegrip(root)
@@ -71,13 +75,23 @@ class main_window:
         menubar.add_cascade(menu=menu_settings, label="Settings")
         menubar.add_cascade(menu=menu_help, label="Help")
         # File menu
-        self.menu_file.add_command(label="Load data", command=self.load_data)
-        self.menu_file.add_command(label="Export data", command=self.export_data)
+        self.menu_file.add_command(label="Load spectra", command=self.add_spectra)
+        self.menu_file.add_command(label="Load directory", command=self.load_directory)
+        self.menu_file.add_separator()
+        self.menu_file.add_command(label="Export results", command=self.export_results)        
+        self.menu_file.add_command(label="Export sample spectra", command=self.export_sample_spectra)
+        self.menu_file.add_command(label="Export bulk spectra", command=self.export_bulk_spectra)
         # disable data export on intialisation
-        self.menu_file.entryconfigure("Export data", state=tk.DISABLED)
-        self.menu_file.entryconfigure("Export data", state=tk.DISABLED)
+        for menu_item in [
+            "Export results",
+            "Export sample spectra",
+            "Export bulk spectra",
+        ]:
+            self.menu_file.entryconfigure(menu_item, state=tk.DISABLED)
         # Settings menu
-        menu_settings.add_command(label="Settings", command=self.settings.open_general_settings)
+        menu_settings.add_command(
+            label="Settings", command=self.settings.open_general_settings
+        )
         # Help menu
         menu_help.add_command(
             label="Contact", command=lambda: self.contact(parent=root)
@@ -120,7 +134,7 @@ class main_window:
             samples,
             listvariable=self.samplesVar,
             selectmode=tk.BROWSE,
-            font=(self.font, "14"),
+            font=(self.font, self.fontsize),
             state=tk.DISABLED,
         )
         self.sample_list.grid(column=0, row=0, columnspan=2, rowspan=6, sticky=("nesw"))
@@ -147,18 +161,59 @@ class main_window:
             lambda event: self.select_sample(self.sample_list.curselection()),
         )
 
-    def load_data(self):
-        dirname = tk.filedialog.askdirectory(initialdir=os.getcwd())
+    def load_directory(self):
+        """
+        
+        """
+        try:
+            dirname = tk.filedialog.askdirectory(initialdir=os.getcwd())
+        except AttributeError:
+            print("Opening files cancelled by user")
+            return
         files = glob.glob(os.path.join(dirname, "*.txt"))
+        self.load_files(files)
+
+    def load_files(self, files):
+        """
+        
+        """
         self.data = data_processing(files, self.settings)
         self.data.preprocess()
         self.samplesVar.set(list(self.data.names))
-        self.menu_file.entryconfigure("Export data", state=tk.NORMAL)
-        self.sample_list.configure(state=tk.NORMAL)
-        self.button_next.configure(state=tk.NORMAL)
-        self.button_previous.configure(state=tk.NORMAL)
+        for menu_item in [
+            "Export results",
+            "Export sample spectra",
+            "Export bulk spectra",
+        ]:
+            self.menu_file.entryconfigure(menu_item, state=tk.NORMAL)
+        for w in [self.sample_list, self.button_next, self.button_previous]:
+            w.configure(state=tk.NORMAL)
+        del w
         self.sample_list.selection_set(first=0)
         self.water_calc.initiate_plot(0)
+
+    def add_spectra(self):
+        """
+        
+        """
+        
+
+        try:
+            filenames = tk.filedialog.askopenfilenames(initialdir=os.getcwd())
+        except AttributeError:
+            print("Opening files cancelled by user")
+            return
+
+        if not self.data:
+            self.load_files(filenames)
+        
+        else:
+            current_selection = self.sample_list.curselection()
+            for f in filenames:
+                self.data.add_sample(f)
+            self.samplesVar.set(list(self.data.names))
+            self.sample_list.selection_set(current_selection)
+
 
     def select_sample(self, index):
         if index:
@@ -168,6 +223,8 @@ class main_window:
 
     def next_sample(self):
         current = self.sample_list.curselection()[-1]
+        if not current:
+            return
         total = self.sample_list.size()
         new = current + 1
         if current < (total - 1):
@@ -178,6 +235,8 @@ class main_window:
 
     def previous_sample(self):
         current = self.sample_list.curselection()[-1]
+        if not current:
+            return
         new = current - 1
         if current > 0:
             self.sample_list.select_clear(current)
@@ -185,7 +244,7 @@ class main_window:
             self.sample_list.see(new)
             self.select_sample(self.sample_list.curselection())
 
-    def export_data(self):
+    def export_results(self):
         data = pd.concat(
             [self.data.processing, self.data.results.drop(columns=["name"])], axis=1
         )
@@ -194,6 +253,13 @@ class main_window:
                 data.to_csv(file.name, index=False)
         except AttributeError:
             print("Saving cancelled")
+
+    def export_sample_spectra(self):
+
+        return
+
+    def export_bulk_spectra(self):
+        return
 
     def contact(self, parent):
         def link(event):
@@ -210,7 +276,7 @@ class main_window:
         github_link = "https://github.com/TDGerve/ramCOH"
         email_string = "thomasvangerve@gmail.com"
 
-        font = (self.font, "18")
+        font = (self.font, "14")
         ttk.Label(window, text=help_string, font=font, anchor="center").grid(
             row=0, column=0, sticky=("nesw")
         )

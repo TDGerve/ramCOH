@@ -53,11 +53,13 @@ class water_calc(ttk.Frame):
             buttons_frame.columnconfigure(i, weight=1)
 
         widget_width = 220
+        font = app.font
+        fontsize = app.fontsize
         ###### RADIOBUTTONS #####
         bir_label = ttk.Label(
             text="Baseline interpolation\nregions",
             justify=tk.LEFT,
-            font=(self.app.font, 16, "bold"),
+            font=(font, fontsize, "bold"),
         )
         number_of_buttons = len(data_processing.Si_birs_labels)
         bir_frame = ttk.Labelframe(
@@ -81,7 +83,7 @@ class water_calc(ttk.Frame):
 
 
         ###### AREA DISPLAY WIDGETS #####
-        area_label = ttk.Label(text="Calculated area", font=(self.app.font, 16, "bold"))
+        area_label = ttk.Label(text="Calculated area", font=(font, fontsize, "bold"))
         areas_frame = ttk.Labelframe(
             buttons_frame, labelwidget=area_label, width=widget_width, height=140
         )
@@ -91,58 +93,35 @@ class water_calc(ttk.Frame):
         for i in range(3):
             areas_frame.rowconfigure(i, weight=1)
             areas_frame.columnconfigure(i, weight=1)
-        # Text widgets
-        font = (self.app.font, 16, "italic")
-        subfont = (self.app.font, 8, "italic")
-        Si_label = tk.Text(areas_frame, width=7, height=1, font=font)
-        H2OSi_label = tk.Text(areas_frame, width=7, height=1, font=font)
-        H2O_label = tk.Text(areas_frame, width=7, height=1, font=font)
+        # Label widgets        
+        Si_label = ttk.Label(areas_frame, text="Si", width=7, font=(font, fontsize))
+        H2O_label = ttk.Label(areas_frame, text="H\u2082O", width=7, font=(font, fontsize))
+        H2OSi_label = ttk.Label(areas_frame, text="H\u2082O/Si", width=7, font=(font, fontsize))        
         Si_label.grid(row=0, column=0, sticky=("sw"))
         H2O_label.grid(row=1, column=0, sticky=("sw"))
         H2OSi_label.grid(row=2, column=0, sticky=("sw"))
-        # Si text
-        Si_label.insert(tk.END, "Si")
-        Si_label.configure(state=tk.DISABLED)
-        # H2O text
-        H2O_label.insert(tk.END, "H2O")
-        H2O_label.tag_add("subscript", "1.1", "1.2")
-        H2O_label.tag_configure("subscript", offset=-2, font=subfont)
-        H2O_label.configure(state=tk.DISABLED)
-        # H2O/Si text
-        H2OSi_label.insert(tk.END, "H2O/Si")
-        H2OSi_label.tag_add("subscript", "1.1", "1.2")
-        H2OSi_label.tag_configure("subscript", offset=-2, font=subfont)
-        H2OSi_label.configure(state=tk.DISABLED)
-        # Label widgets
+        # Label variable widgets
         self.Si_var = tk.StringVar()
         self.H2O_var = tk.StringVar()
         self.H2OSi_var = tk.StringVar()
         label_width = 8
         self.Si_area_label = ttk.Label(
-            areas_frame, textvariable=self.Si_var, font=font, width=label_width
+            areas_frame, textvariable=self.Si_var, font=(font, fontsize, "italic"), width=label_width
         )
         self.H2O_area_label = ttk.Label(
-            areas_frame, textvariable=self.H2O_var, font=font, width=label_width
+            areas_frame, textvariable=self.H2O_var, font=(font, fontsize, "italic"), width=label_width
         )
         self.H2OSi_area_label = ttk.Label(
-            areas_frame, textvariable=self.H2OSi_var, font=font, width=label_width
+            areas_frame, textvariable=self.H2OSi_var, font=(font, fontsize, "italic"), width=label_width
         )
-        # Text widgets for units
-        Si_units = tk.Text(areas_frame, width=5, height=1, font=font)
-        H2O_units = tk.Text(areas_frame, width=5, height=1, font=font)
-        # Grid widgets
+        Si_units = ttk.Label(areas_frame, text="x10\u207b\u00b2", width=5, font=(font, fontsize, "italic"))
+        H2O_units = ttk.Label(areas_frame, text="x10\u207b\u00b2", width=5, font=(font, fontsize, "italic"))
         self.Si_area_label.grid(row=0, column=1, sticky=("es"))
         self.H2O_area_label.grid(row=1, column=1, sticky=("es"))
         self.H2OSi_area_label.grid(row=2, column=1, sticky=("es"))
         Si_units.grid(row=0, column=2, sticky=("ws"))
         H2O_units.grid(row=1, column=2, sticky=("ws"))
-        # Units text
-        for text in (Si_units, H2O_units):
-            text.insert(tk.END, "x 10-2")
-            text.tag_add("superscript", "1.4", "1.7")
-            text.tag_configure("superscript", offset=8, font=subfont)
-            text.configure(state=tk.DISABLED)
-        # Separator line
+
         ttk.Separator(areas_frame, orient=tk.HORIZONTAL).grid(
             row=0, column=0, columnspan=3, sticky=("sew")
         )
@@ -151,7 +130,7 @@ class water_calc(ttk.Frame):
         )
 
         ###### BASELINE SMOOTHING WIDGETS #####
-        baseline_label = ttk.Label(text="Baseline", font=(self.app.font, 16, "bold"))
+        baseline_label = ttk.Label(text="Baseline", font=(font, fontsize, "bold"))
         baseline_frame = ttk.Labelframe(
             buttons_frame, labelwidget=baseline_label, width=widget_width, height=60
         )
@@ -165,7 +144,7 @@ class water_calc(ttk.Frame):
         # Spinbox widget for baseline smoothing
         self.smoothing_var = tk.StringVar()
         self.smoothing_var.set(1)
-        smoothing_label = ttk.Label(baseline_frame, text="Smoothing", font=font)
+        smoothing_label = ttk.Label(baseline_frame, text="Smoothing", font=(font, fontsize, "italic"))
         # Validate on changing focus
         self.smoothing_spinbox = ttk.Spinbox(
             baseline_frame,
@@ -177,8 +156,8 @@ class water_calc(ttk.Frame):
             invalidcommand=(self.register(self.invalid_smoothing), "%P"),
             textvariable=self.smoothing_var,
             takefocus=1,
-            width=10,
-            font=font,
+            width=5,
+            font=(font, fontsize, "italic"),
         )
         baseline_set = ttk.Button(
             baseline_frame, text="Set", command=self.set_baseline_smoothing
@@ -291,6 +270,7 @@ class water_calc(ttk.Frame):
         """
 
         self.sample_index = index
+        
 
         self.sample = self.app.data.spectra[index]
         self.recalculate_areas()
