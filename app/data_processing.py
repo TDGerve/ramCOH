@@ -9,15 +9,13 @@ def import_birs():
     with open("birs.json") as f:
         birs_all = json.load(f)
 
-    birs = []
-    labels = []
+    birs = {}
 
     for name, bir in birs_all.items():
         if bir["use"]:
-            labels.append(name)
-            birs.append(np.array(bir["birs"]))
+            birs[name] = np.array(bir["birs"])
 
-    return labels, birs
+    return birs
 
 
 class data_processing:
@@ -25,16 +23,15 @@ class data_processing:
     smooth_factor = 1
 
     # Get baseline interpolation regions
-    Si_birs_labels, Si_birs = import_birs()
+    Si_birs = import_birs()
 
     def __init__(self, files, settings, modeltype="H2O"):
+        self.settings = settings
         # Parse files
-        self.separator = settings.name_separator.get()
         self.files = tuple(files)
-        self.names = self.get_names(files)
+        self.names = self.get_names_from_files(files)
 
         self.spectra = {}
-        self.laser = settings.laser.get()
         self.model = getattr(ram, modeltype)
 
         # Create dataframe to store outputs
@@ -45,34 +42,36 @@ class data_processing:
 
         # Create dataframe to store processing parameters
         self.processing = pd.DataFrame({"name": self.names, "interpolate": False})
-        self.processing["interpolate_left"] = int(780)
-        self.processing["interpolate_right"] = int(900)
-        self.processing["Si_bir"] = int(0)
-        self.processing["water_left"] = int(2800)
-        self.processing["water_right"] = int(3850)
+        self.processing["interpolate_left"] = int(self.settings.interpolate_left) 
+        self.processing["interpolate_right"] = int(self.settings.interpolate_right) 
+        self.processing["Si_bir"] = self.settings.Si_bir  
+        self.processing["water_left"] = int(self.settings.H2O_left)
+        self.processing["water_right"] = int(self.settings.H2O_right)
 
         # # Get baseline interpolation regions
         # self.Si_birs_labels, self.Si_birs = import_birs()
 
-    def get_names(self, files):
-
+    def get_names_from_files(self, files):
+        separator = self.settings.name_separator_var.get()
         names = tuple()
 
         for file in files:
             name = os.path.basename(file)
-            if self.separator not in name:
+            if separator not in name:
                 names = names + tuple([name])
             else:
-                names = names + tuple([name[: name.find(self.separator)]])
+                names = names + tuple([name[: name.find(separator)]])
 
-        return names
+        return names         
+        
 
     def preprocess(self):
+        laser = self.settings.laser_var.get()
         for i, f in enumerate(self.files):
             x, y = np.genfromtxt(f, unpack=True)
-            self.spectra[i] = self.model(x, y, laser=self.laser)
+            self.spectra[i] = self.model(x, y, laser=laser)
             self.spectra[i].longCorrect()
-            self.spectra[i].baselineCorrect(smooth_factor=1)
+            self.spectra[i].baselineCorrect(smooth_factor=self.smooth_factor)
             self.spectra[i].calculate_SiH2Oareas()
             Si_area, H2O_area = self.spectra[i].SiH2Oareas
             self.results.loc[i, ["SiArea", "H2Oarea"]] = Si_area, H2O_area
@@ -81,14 +80,15 @@ class data_processing:
     def add_sample(self, file):
         """ 
         """
+        laser = self.settings.laser_var.get()
         # Get name, file and index
         index = len(self.files)
-        name = self.get_names([file])
+        name = self.get_names_from_files([file])
         self.names = self.names + name
         self.files = self.files + tuple([file])
         # Load and processes spectrum
         x, y = np.genfromtxt(file, unpack=True)
-        self.spectra[index] = self.model(x, y, laser=self.laser)
+        self.spectra[index] = self.model(x, y, laser=laser)
         self.spectra[index].longCorrect()
         self.spectra[index].baselineCorrect(smooth_factor=1)
         self.spectra[index].calculate_SiH2Oareas()
@@ -122,12 +122,10 @@ class data_processing:
         for i, sample in self.spectra.items():
 
             H2O_left, H2O_right = self.processing.loc[i, ["water_left", "water_right"]]
-            H2O_bir = np.array([[1500, H2O_left], [H2O_right, 4000]])
             Si_birs_select = int(self.processing.loc[i, "Si_bir"])
             Si_bir = self.Si_birs[Si_birs_select]
-            birs = np.concatenate((Si_bir, H2O_bir))
 
-            sample.baselineCorrect(baseline_regions=birs, smooth_factor=1)
+            sample.baselineCorrect(Si_birs=Si_bir, H2O_boundaries=[H2O_left, H2O_right], smooth_factor=self.smooth_factor)
             sample.calculate_SiH2Oareas()
             Si_area, H2O_area = sample.SiH2Oareas
 

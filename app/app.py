@@ -1,4 +1,3 @@
-
 import os, glob
 import webbrowser
 import pandas as pd
@@ -11,20 +10,8 @@ from data_processing import data_processing
 from water_calc import water_calc
 from interpolation import interpolation
 from subtraction import subtraction
+from plot_layout import plot_layout
 
-
-# MOVE THE PLOT LAYOUT SETTINGS TO SOMEWHERE WITHIN THE CODE AND REMOVE THE MELTINC DEPENDENCY
-# Some plot settings
-import meltInc.plotting as p
-
-fontsize = 6
-p.layout(
-    colors=p.colors.bella,
-    axTitleSize=fontsize,
-    axLabelSize=fontsize,
-    tickLabelSize=fontsize / 1.2,
-    fontSize=fontsize,
-)
 
 
 class main_window:
@@ -197,8 +184,6 @@ class main_window:
         """
         
         """
-        
-
         try:
             filenames = tk.filedialog.askopenfilenames(initialdir=os.getcwd())
         except AttributeError:
@@ -224,9 +209,10 @@ class main_window:
             self.water_calc.update_plot_sample(selection)
 
     def next_sample(self):
-        current = self.sample_list.curselection()[-1]
-        if not current:
+        current = self.sample_list.curselection()
+        if not current: # See if selection exists
             return
+        current = current[-1] # Grab actucal number
         total = self.sample_list.size()
         new = current + 1
         if current < (total - 1):
@@ -308,6 +294,14 @@ class main_window:
 
 
 def main():
+
+    fontsize = 6
+    plot_layout(
+        axTitleSize=fontsize,
+        axLabelSize=fontsize,
+        tickLabelSize=fontsize / 1.2,
+        fontSize=fontsize,
+    )
 
     root = tk.Tk()
     main_window(root)

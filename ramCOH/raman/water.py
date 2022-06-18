@@ -12,7 +12,12 @@ from .baseclass import RamanProcessing
 
 class H2O(RamanProcessing):
     # Baseline regions
-    birs = np.array([[20, 250], [640, 655], [800, 810], [1220, 2800], [3750, 4000]])
+    Si_birs_default = np.array([[20, 250], [640, 655], [800, 810], [1220, 1600]])
+    H2O_boundaries_default = [2800, 3850]
+    H2O_birs_default = np.array(
+        [[1500, H2O_boundaries_default[0]], [H2O_boundaries_default[1], 4000]]
+    )
+    birs_default = np.concatenate((Si_birs_default, H2O_birs_default))
 
     def __init__(self, x, y, **kwargs):
 
@@ -20,6 +25,12 @@ class H2O(RamanProcessing):
         self._processing.update(
             {"long_corrected": False, "interpolated": False, "olivine_corrected": False}
         )
+        self.Si_birs = kwargs.get("Si_birs", self.Si_birs_default)
+        self.H2O_boundaries = kwargs.get("H2O_boundaries", self.H2O_boundaries_default)
+        H2O_birs = np.array(
+            [[1500, min(self.H2O_boundaries)], [max(self.H2O_boundaries), 4000]]
+        )
+        self.birs = np.concatenate((self.Si_birs, H2O_birs))
 
     def longCorrect(self, T_C=23.0, normalisation="area", **kwargs):
 
@@ -33,6 +44,15 @@ class H2O(RamanProcessing):
         # self.LC = 1
         self._spectrumSelect = "long_corrected"
         self._processing["long_corrected"] = True
+
+    def baselineCorrect(self, **kwargs):
+
+        Si_birs = kwargs.get("Si_birs", self.Si_birs)
+        H2O_boundaries = kwargs.get("H2O_boundaries", self.H2O_boundaries)
+        H2O_birs = np.array([[1500, min(H2O_boundaries)], [max(H2O_boundaries), 4000]])
+        baseline_regions = np.concatenate((Si_birs, H2O_birs))
+
+        return super().baselineCorrect(baseline_regions=baseline_regions, **kwargs)
 
     def interpolate(self, *, interpolate=[780, 900], smooth=1e-6, **kwargs):
 
@@ -59,7 +79,9 @@ class H2O(RamanProcessing):
         # Interpolated residual
         self.interpolation_residuals = spectrum - self.spectrum_spline
 
-        _, baseline = f._extractBIR(self.x[self.x > 350], self.interpolation_residuals[self.x > 350], birs)
+        _, baseline = f._extractBIR(
+            self.x[self.x > 350], self.interpolation_residuals[self.x > 350], birs
+        )
         noise = baseline.std(axis=None)
         # Add signal noise to the spline
         noise_spline = self.spectrum_spline + np.random.normal(0, noise, len(self.x))
