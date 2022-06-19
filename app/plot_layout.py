@@ -44,7 +44,7 @@ def plot_layout(
     axTitleSize=14,
     axLabelSize=14,
     tickLabelSize=10,
-    colors=colors.firenze,
+    colors=colors.bella,
 ):
 
     plt.rcParams["figure.constrained_layout.use"] = True

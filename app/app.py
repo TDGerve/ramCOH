@@ -10,22 +10,16 @@ from data_processing import data_processing
 from water_calc import water_calc
 from interpolation import interpolation
 from subtraction import subtraction
-from plot_layout import plot_layout
-
+from current_sample import current_sample
 
 
 class main_window:
-
-    data = None
-    sample_index = None
-    sample_name = None
-
     def __init__(self, root, *args, **kwargs):
         """
         Main window
         """
 
-        # Set theme
+        # Set tkinter theme
         style = ttk.Style()
         root.tk.call("source", f"{os.getcwd()}/theme/breeze.tcl")
         theme = "Breeze"
@@ -49,6 +43,10 @@ class main_window:
         root.rowconfigure(0, weight=1)
         root.columnconfigure(3, weight=1)
 
+        ##### INITIALISE VARIABLES #####
+        self.data_bulk = None
+        self.current_sample = None
+
         ##### INITIATE SETTINGS #####
         self.settings = settings(root, self)
 
@@ -67,9 +65,13 @@ class main_window:
         self.menu_file.add_command(label="Load spectra", command=self.add_spectra)
         self.menu_file.add_command(label="Load directory", command=self.load_directory)
         self.menu_file.add_separator()
-        self.menu_file.add_command(label="Export results", command=self.export_results)        
-        self.menu_file.add_command(label="Export sample spectra", command=self.export_sample_spectra)
-        self.menu_file.add_command(label="Export bulk spectra", command=self.export_bulk_spectra)
+        self.menu_file.add_command(label="Export results", command=self.export_results)
+        self.menu_file.add_command(
+            label="Export sample spectra", command=self.export_sample_spectra
+        )
+        self.menu_file.add_command(
+            label="Export bulk spectra", command=self.export_bulk_spectra
+        )
         # disable data export on intialisation
         for menu_item in [
             "Export results",
@@ -80,6 +82,9 @@ class main_window:
         # Settings menu
         menu_settings.add_command(
             label="Settings", command=self.settings.open_general_settings
+        )
+        menu_settings.add_command(
+            label="Baseline settings", command=self.settings.open_bir_settings
         )
         # Help menu
         menu_help.add_command(
@@ -101,7 +106,7 @@ class main_window:
         # Create tabs inside the main frame
         panels = ttk.Notebook(main_frame)
         self.water_calc = water_calc(panels, self)
-        interpolate = interpolation(panels)
+        interpolate = interpolation(panels, self)
         subtract = subtraction(panels)
         # Put the frames on the grid
         panels.grid(column=0, row=0, sticky=("nesw"))
@@ -115,6 +120,8 @@ class main_window:
         # Adjust resizability
         panels.rowconfigure(0, weight=1)
         panels.columnconfigure(0, weight=1)
+        # trigger function on tab change
+        panels.bind("<<NotebookTabChanged>>", self.on_tab_change)
 
         ##### POPULATE SAMPLES FRAME #####
         # List with all samples
@@ -149,24 +156,22 @@ class main_window:
         )
 
     def load_directory(self):
-        """
-        
-        """
+        """ """
         try:
             dirname = tk.filedialog.askdirectory(initialdir=os.getcwd())
         except AttributeError:
             print("Opening files cancelled by user")
             return
         files = glob.glob(os.path.join(dirname, "*.txt"))
+        if not files:
+            return
         self.initiate_load_files(files)
 
     def initiate_load_files(self, files):
-        """
-        
-        """
-        self.data = data_processing(files, self.settings)
-        self.data.preprocess()
-        self.samplesVar.set(list(self.data.names))
+        """ """
+        self.data_bulk = data_processing(files, self.settings)
+        self.data_bulk.preprocess()
+        self.samplesVar.set(list(self.data_bulk.names))
         for menu_item in [
             "Export results",
             "Export sample spectra",
@@ -177,42 +182,38 @@ class main_window:
             w.configure(state=tk.NORMAL)
         del w
         self.sample_list.selection_set(first=0)
-        self.sample_index = 0
-        self.water_calc.initiate_plot(0)
+        self.current_sample = current_sample(self.data_bulk, 0)
+        self.water_calc.initiate_plot()
 
     def add_spectra(self):
-        """
-        
-        """
+        """ """
         try:
             filenames = tk.filedialog.askopenfilenames(initialdir=os.getcwd())
         except AttributeError:
             print("Opening files cancelled by user")
             return
 
-        if not self.data:
+        if not self.data_bulk:
             self.initiate_load_files(filenames)
-        
+
         else:
             current_selection = self.sample_list.curselection()
             for f in filenames:
-                self.data.add_sample(f)
-            self.samplesVar.set(list(self.data.names))
+                self.data_bulk.add_sample(f)
+            self.samplesVar.set(list(self.data_bulk.names))
             self.sample_list.selection_set(current_selection)
-
 
     def select_sample(self, index):
         if index:
             selection = index[-1]
-            self.sample_index = selection
-            self.sample_name = self.data.names[selection]
-            self.water_calc.update_plot_sample(selection)
+            self.current_sample = current_sample(self.data_bulk, selection)
+            self.water_calc.update_plot_sample()
 
     def next_sample(self):
         current = self.sample_list.curselection()
-        if not current: # See if selection exists
+        if not current:  # See if selection exists
             return
-        current = current[-1] # Grab actucal number
+        current = current[-1]  # Grab actucal number
         total = self.sample_list.size()
         new = current + 1
         if current < (total - 1):
@@ -232,27 +233,84 @@ class main_window:
             self.sample_list.see(new)
             self.select_sample(self.sample_list.curselection())
 
+    def on_tab_change(self, event):
+        """
+        Refresh plot on the opened tab
+        """
+        tab = event.widget.tab("current")["text"]
+        if self.current_sample:
+            selected_sample = self.current_sample.index
+            if tab == "Baseline correction":
+                self.water_calc.update_plot_sample()
+            elif tab == "Interpolation":
+                return
+            elif tab == "Crystal correction":
+                return
+
     def export_results(self):
-        data = pd.concat(
-            [self.data.processing, self.data.results.drop(columns=["name"])], axis=1
+        dataframe = pd.concat(
+            [self.data_bulk.processing, self.data_bulk.results.drop(columns=["name"])],
+            axis=1,
         )
         try:
             with tk.filedialog.asksaveasfile(mode="w", defaultextension=".csv") as file:
-                data.to_csv(file.name, index=False)
+                dataframe.to_csv(file.name, index=False)
         except AttributeError:
             print("Saving cancelled")
 
     def export_sample_spectra(self):
+        """
+        Export processed spectra for a single sample
+        """
 
-        sample = self.data.spectra[self.sample_index]
-        name = self.sample_name
+        sample = self.current_sample.spectra
+        name = self.current_sample.name
+        # Raw data
+        dataframe = pd.DataFrame({"x": sample.x})
+        dataframe["raw"] = sample.signal.raw
+        # Grab all processed sectra
+        spectra = {
+            name: getattr(sample.signal, name)
+            for name, check in sample._processing.items()
+            if check
+        }
+        dataframe = pd.concat([dataframe, pd.DataFrame(spectra)], axis=1)
+        dataframe["baseline"] = sample.baseline
 
-        #CONTINUE HERE
-
-        return
+        try:
+            with tk.filedialog.asksaveasfile(
+                mode="w", initialfile=name, defaultextension="csv"
+            ) as file:
+                dataframe.to_csv(file.name, index=False)
+        except AttributeError:
+            print("Saving cancelled")
 
     def export_bulk_spectra(self):
-        return
+        """
+        Export (processed) spectra for all samples
+        """
+
+        try:
+            dirname = tk.filedialog.askdirectory(initialdir=os.getcwd())
+        except AttributeError:
+            print("Exporting files cancelled by user")
+            return
+
+        for i, sample in self.data_bulk.spectra.items():
+            name = self.data_bulk.names[i]
+            # Raw data
+            dataframe = pd.DataFrame({"x": sample.x})
+            dataframe["raw"] = sample.signal.raw
+            # Grab all processed sectra
+            spectra = {
+                name: getattr(sample.signal, name)
+                for name, check in sample._processing.items()
+                if check
+            }
+            dataframe = pd.concat([dataframe, pd.DataFrame(spectra)], axis=1)
+            dataframe["baseline"] = sample.baseline
+
+            dataframe.to_csv(f"{dirname}/{i:02}_{name}.csv", index=False)
 
     def contact(self, parent):
         def link(event):
@@ -294,14 +352,6 @@ class main_window:
 
 
 def main():
-
-    fontsize = 6
-    plot_layout(
-        axTitleSize=fontsize,
-        axLabelSize=fontsize,
-        tickLabelSize=fontsize / 1.2,
-        fontSize=fontsize,
-    )
 
     root = tk.Tk()
     main_window(root)

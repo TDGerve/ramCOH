@@ -5,17 +5,17 @@ import numpy as np
 import json
 
 
+
 def import_birs():
-    with open("birs.json") as f:
+    with open("birs.json") as f: # keeo json file in same folder
         birs_all = json.load(f)
 
     birs = {}
 
     for name, bir in birs_all.items():
-        if bir["use"]:
-            birs[name] = np.array(bir["birs"])
+        birs[name] = np.array(bir["birs"])   
 
-    return birs
+    return birs    
 
 
 class data_processing:
@@ -33,6 +33,8 @@ class data_processing:
 
         self.spectra = {}
         self.model = getattr(ram, modeltype)
+        self.sample_selected = None
+        self.sample_name = None
 
         # Create dataframe to store outputs
         self.results = pd.DataFrame({"name": self.names})
@@ -62,7 +64,7 @@ class data_processing:
             else:
                 names = names + tuple([name[: name.find(separator)]])
 
-        return names         
+        return names     
         
 
     def preprocess(self):
@@ -76,6 +78,8 @@ class data_processing:
             Si_area, H2O_area = self.spectra[i].SiH2Oareas
             self.results.loc[i, ["SiArea", "H2Oarea"]] = Si_area, H2O_area
             self.results.loc[i, "rWS"] = H2O_area / Si_area
+        self.sample_selected = 0
+        self.sample_name = self.names[self.sample_selected]
 
     def add_sample(self, file):
         """ 
@@ -99,11 +103,11 @@ class data_processing:
             {
                 "name": name[0],
                 "interpolate": False,
-                "interpolate_left": int(780),
-                "interpolate_right": int(900),
-                "Si_bir": int(0),
-                "water_left": int(2800),
-                "water_right": int(3850),
+                "interpolate_left": int(self.settings.interpolate_left),
+                "interpolate_right": int(self.settings.interpolate_right),
+                "Si_bir": self.settings.Si_bir,
+                "water_left": int(self.settings.H2O_left),
+                "water_right": int(self.settings.H2O_right),
             }, name=index
         )
         self.processing.loc[index] = new_processing
