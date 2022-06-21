@@ -8,6 +8,7 @@ from ..signal_processing import curve_fitting as cf
 from ..signal_processing import curves as c
 from ..signal_processing import deconvolution as d
 from .baseclass import RamanProcessing
+from .olivine import Olivine
 
 
 class H2O(RamanProcessing):
@@ -152,11 +153,12 @@ class H2O(RamanProcessing):
         olivine_main_peaks = olivine_fit.deconvolution_parameters
 
         # Deconvolute host crystal spectrum
-        olivine = olivine(olivine_x, olivine_y)
+        olivine = Olivine(olivine_x, olivine_y)
         olivine.baselineCorrect()
         olivine.calculate_noise()
         # print("fitting host")
         olivine.deconvolve(
+            y="baseline_corrected",
             fit_window=fit_window,
             noise_threshold=noise_threshold,
             threshold_scale=threshold_scale,

@@ -65,13 +65,11 @@ class main_window:
         self.menu_file.add_command(label="Load spectra", command=self.add_spectra)
         self.menu_file.add_command(label="Load directory", command=self.load_directory)
         self.menu_file.add_separator()
-        self.menu_file.add_command(label="Export results", command=self.export_results)
+        self.menu_file.add_command(label="Export results")
         self.menu_file.add_command(
-            label="Export sample spectra", command=self.export_sample_spectra
-        )
+            label="Export sample spectra")
         self.menu_file.add_command(
-            label="Export bulk spectra", command=self.export_bulk_spectra
-        )
+            label="Export bulk spectra")
         # disable data export on intialisation
         for menu_item in [
             "Export results",

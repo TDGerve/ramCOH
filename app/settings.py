@@ -51,7 +51,7 @@ class settings:
 
         # Plot Layout
             # Set the plot layout
-        fontsize = 6
+        fontsize = 12
         plot_layout(
             axTitleSize=fontsize,
             axLabelSize=fontsize,

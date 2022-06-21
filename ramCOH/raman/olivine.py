@@ -40,7 +40,9 @@ class Olivine(RamanProcessing):
         **kwargs,
     ):
 
-        if hasattr(self, "noise"):
+        if "noise" in kwargs:
+            noise = kwargs.pop("noise")
+        elif hasattr(self, "noise"):
             noise = self.noise
         else:
             noise = None
