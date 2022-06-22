@@ -48,6 +48,7 @@ class H2O(RamanProcessing):
 
     def baselineCorrect(self, **kwargs):
 
+        _ = kwargs.pop("baseline_regions", None)
         Si_birs = kwargs.get("Si_birs", self.Si_birs)
         H2O_boundaries = kwargs.get("H2O_boundaries", self.H2O_boundaries)
         H2O_birs = np.array([[1500, min(H2O_boundaries)], [max(H2O_boundaries), 4000]])
