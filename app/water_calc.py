@@ -379,7 +379,7 @@ class water_calc(ttk.Frame):
                 for region in birs
             ]
 
-        self.legend = self.ax1.legend(loc="upper left", prop={"size": 6})
+        self.legend = self.ax1.legend(loc="upper left", prop={"size": self.app.fontsize/3})
 
         for polygon in self.Si_bir_polygons[self.sample.Si_birs_select]:
             polygon.set_visible(True)
