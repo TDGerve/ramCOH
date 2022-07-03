@@ -323,7 +323,6 @@ class interpolation(ttk.Frame):
         if event.button == 1 and event.inaxes in [self.ax] and self._dragging_line:
             new_x = event.xdata
             self.interpolate_lines[self._dragging_line_id] = self._dragging_line
-
             # self._dragging_line.remove()
             id = self._dragging_line_id
             if id == 0:
@@ -335,6 +334,9 @@ class interpolation(ttk.Frame):
             # Recalculate and refresh interpolation
             self.update_interpolation_regions()
             self.draw_interpolation()
+            # Reset lines (they sometimes seem to move more than the interpolation regions)
+            for line, x in zip(self.interpolate_lines, (self.sample.interpolate_left, self.sample.interpolate_right)):
+                line.set_xdata([x, x])
 
     def _on_motion(self, event):
         """
