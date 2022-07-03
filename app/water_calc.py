@@ -196,11 +196,11 @@ class water_calc(ttk.Frame):
             width=5,
             font=(font, fontsize, "italic"),
         )
-        baseline_set = ttk.Button(
-            baseline_frame, text="Set", command=self.set_baseline_smoothing
+        self.baseline_set = ttk.Button(
+            baseline_frame, text="Set", command=self.set_baseline_smoothing, state=tk.DISABLED
         )
         smoothing_label.grid(row=0, column=0, sticky=("w"))
-        baseline_set.grid(row=1, column=0, columnspan=2, sticky=("ew"))
+        self.baseline_set.grid(row=1, column=0, columnspan=2, sticky=("ew"))
         self.smoothing_spinbox.grid(row=0, column=1, sticky=("e"))
         # Leave some space between the frame and the widgets
         for child in baseline_frame.winfo_children():
@@ -278,9 +278,10 @@ class water_calc(ttk.Frame):
         self.draw_baseline()
 
     def save_sample(self):
+        """ 
+        """
 
-        if self.sample:
-            self.sample.save_water_settings()
+        self.sample.save_water_settings()
 
         # self.app.data_bulk.processing.loc[
         #     self.sample.index, "Si_bir"
@@ -400,7 +401,8 @@ class water_calc(ttk.Frame):
         self.canvas.draw()
 
         # Activate buttons
-        self.save_button.configure(state=tk.NORMAL)
+        for widget in [self.baseline_set, self.save_button]:
+            widget.configure(state=tk.NORMAL)
         for radio in self.bir_radio_buttons:
             radio.configure(state=tk.NORMAL)
 
@@ -500,16 +502,6 @@ class water_calc(ttk.Frame):
         """
         Docstring
         """
-        # smooth_factor = self.app.data_bulk.smooth_factor
-
-        # Si_bir = data_processing.Si_birs[self.sample.Si_birs_select]
-
-        # self.sample.spectra.baselineCorrect(
-        #     Si_birs=Si_bir,
-        #     H2O_boundaries=[round(self.sample.H2O_left, -1), round(self.sample.H2O_right, -1)],
-        #     smooth_factor=smooth_factor,
-        # )
-
         self.sample.recalculate_baseline()
         for i, _ in enumerate([self.ax1, self.ax2]):
             self.baselines[i][0].set_data(self.sample.spectra.x, self.sample.spectra.baseline)

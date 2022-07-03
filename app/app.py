@@ -35,8 +35,8 @@ class main_window:
         root.title("ramCOH by T. D. van Gerve")
 
         # Set some geometries
-        root.minsize(1000, 900)
-        root.geometry("1000x900")
+        root.minsize(1000, 830)
+        root.geometry("1200x1000")
         root.resizable(True, True)
         sizegrip = ttk.Sizegrip(root)
         sizegrip.grid(row=7, sticky=("se"))

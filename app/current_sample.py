@@ -11,18 +11,6 @@ class current_sample:
         self.read_interpolation()
         # Baseline interpolation region settings
         self.read_water()
-        # self.Si_birs_select = dataset.processing.loc[index, "Si_bir"]
-        # self.H2O_left = dataset.processing.loc[index, "water_left"]
-        # self.H2O_right = dataset.processing.loc[index, "water_right"]
-
-        
-        # self.interpolate = dataset.processing.loc[index, "interpolate"]
-        # self.interpolate_left = dataset.processing.loc[index, "interpolate_left"]
-        # self.interpolate_right = dataset.processing.loc[index, "interpolate_right"]
-        # self.interpolation_smoothing = dataset.processing.loc[
-        #     index, "interpolation_smoothing"
-        # ]
-        # Calculated areas
         self.recalculate_areas()
 
     def read_interpolation(self):
@@ -44,10 +32,7 @@ class current_sample:
         self.H2O_right = self.dataset.processing.loc[self.index, "water_right"]
 
     def recalculate_interpolation(self):
-        """
-        
-        """
-
+        """ """
         self.spectra.interpolate(
             interpolate=[self.interpolate_left, self.interpolate_right],
             smooth_factor=self.interpolation_smoothing,
@@ -55,9 +40,7 @@ class current_sample:
         )
 
     def recalculate_baseline(self):
-        """
-
-        """
+        """ """
         smooth_factor = self.dataset.smooth_factor
 
         Si_bir = self.dataset.Si_birs[self.Si_birs_select]
@@ -69,16 +52,12 @@ class current_sample:
         )
 
     def recalculate_areas(self):
-        """
-
-        """
+        """ """
         self.spectra.calculate_SiH2Oareas()
         self.Si_area, self.H2O_area = self.spectra.SiH2Oareas
 
     def save_interpolation_settings(self):
-        """
-        
-        """
+        """ """
         self.dataset.processing.loc[self.index, "interpolate"] = self.interpolate
         self.dataset.processing.loc[
             self.index, "interpolate_left"
@@ -91,9 +70,7 @@ class current_sample:
         ] = self.interpolation_smoothing
 
     def save_water_settings(self):
-        """
-        
-        """
+        """ """
         self.dataset.processing.loc[self.index, "Si_bir"] = self.Si_birs_select
         self.dataset.processing.loc[self.index, ["water_left", "water_right"]] = round(
             self.H2O_left, -1

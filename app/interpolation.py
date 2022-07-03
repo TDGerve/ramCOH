@@ -1,6 +1,5 @@
-from tkinter import W, ttk
+from tkinter import ttk
 import tkinter as tk
-from turtle import settiltangle
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
@@ -31,8 +30,7 @@ class interpolation(ttk.Frame):
     # plot x limits
     xmin = 250
     xmax = 1400
-    interpolation_colors = ["grey", "green"]
-    
+    interpolation_colors = ["grey", "darkgreen"]
 
     # Initiate variables
     raw_spectrum = None
@@ -52,18 +50,22 @@ class interpolation(ttk.Frame):
         fontsize = app.fontsize
         self.colors = plt.rcParams["axes.prop_cycle"].by_key()["color"]
 
+        # Create frames
         plot_frame = ttk.Frame(self)
         toolbar_frame = ttk.Frame(self)
         settings_frame = ttk.Frame(self)
+        # Put frames on a grid
         plot_frame.grid(row=0, column=0, sticky=("nesw"))
         toolbar_frame.grid(row=0, column=1, sticky=("nesw"))
         settings_frame.grid(row=1, column=0, columnspan=2, sticky=("nesw"))
+        # Configure resizing
         self.rowconfigure(0, weight=1)
         self.rowconfigure(1, weight=1)
         self.columnconfigure(0, weight=1)
         plot_frame.columnconfigure(0, weight=1)
         plot_frame.rowconfigure(0, weight=1)
-        settings_frame.rowconfigure(1, weight=1)
+        settings_frame.rowconfigure(2, weight=1)
+        settings_frame.columnconfigure(3, weight=1)
 
         # Create plot canvas
         self.fig, self.ax = plt.subplots(
@@ -90,19 +92,23 @@ class interpolation(ttk.Frame):
         # Widgets with interpolation settings
         # Interpolation checkbox
         self.itp_var = tk.BooleanVar()
+        checkbox_label = ttk.Label(
+            settings_frame, text="Interpolate", font=(font, fontsize)
+        )
         self.checkbox = ttk.Checkbutton(
             settings_frame,
-            text="interpolate",
             variable=self.itp_var,
             onvalue=True,
             offvalue=False,
-            command=self.interpolate_check
+            command=self.interpolate_check,
+            state=tk.DISABLED,
         )
-        self.checkbox.grid(row=0, column=0, sticky=("nsw"))
+        self.checkbox.grid(row=1, column=0, sticky=("nesw"))
+        checkbox_label.grid(row=0, column=0, sticky=("esw"))
 
         smoothing_label = ttk.Label(
             settings_frame, text="Interpolation smoothing", font=(font, fontsize)
-        )        
+        )
         self.smoothing_var = tk.StringVar()
         self.smoothing_var.set(1)
         self.smoothing_spinbox = ttk.Spinbox(
@@ -117,40 +123,66 @@ class interpolation(ttk.Frame):
             takefocus=1,
             width=5,
             font=(font, fontsize, "italic"),
+            state=tk.DISABLED,
         )
-        smoothing_set = ttk.Button(
-            settings_frame, text="Set", command=self.set_interpolation_smoothing
+        self.smoothing_set = ttk.Button(
+            settings_frame,
+            text="Set",
+            command=self.set_interpolation_smoothing,
+            state=tk.DISABLED,
         )
-        interpolation_reset = ttk.Button(settings_frame, text="Reset", command=self.reset_interpolation)
-        smoothing_label.grid(row=0, column=2, sticky=("nse"))
-        self.smoothing_spinbox.grid(row=0, column=1, sticky=("nsw"))
-        smoothing_set.grid(row=1, column=1, columnspan=2, sticky=("n"))
-        interpolation_reset.grid(row=0, column=3)
+        self.interpolation_reset = ttk.Button(
+            settings_frame,
+            text="Reset",
+            command=self.reset_interpolation,
+            state=tk.DISABLED,
+        )
+        self.interpolation_save = ttk.Button(
+            settings_frame,
+            text="Save",
+            command=self.save_interpolation,
+            state=tk.DISABLED,
+        )
+        smoothing_label.grid(row=0, column=1, columnspan=2, sticky=("s"))
+        self.smoothing_spinbox.grid(row=1, column=1, sticky=("nsw"))
+        self.smoothing_set.grid(row=1, column=2, sticky=("n"))
+        self.interpolation_reset.grid(row=0, column=3, sticky=("e"))
+        self.interpolation_save.grid(row=1, column=3, sticky=("ne"))
 
         for child in settings_frame.winfo_children():
             child.grid_configure(padx=10, pady=10)
 
         for child in self.winfo_children():
-            child.grid_configure(padx=5, pady=5)        
+            child.grid_configure(padx=5, pady=5)
 
     def initiate_plot(self):
-        """ 
-        
-        """
-        
+        """ """
+        # Enable all widgets
+        for widget in [
+            self.checkbox,
+            self.smoothing_spinbox,
+            self.smoothing_set,
+            self.interpolation_reset,
+            self.interpolation_save,
+        ]:
+            widget.configure(state=tk.NORMAL)
+
         self.sample = self.app.current_sample
         self.old_spectrum = self.sample.spectra._spectrumSelect
         self.smoothing_var.set(self.sample.interpolation_smoothing)
         self.itp_var.set(str(self.sample.interpolate))
         if not hasattr(self.sample.spectra.signal, "interpolated"):
             self.sample.spectra.interpolate(
-                interpolate=[self.sample.interpolate_left, self.sample.interpolate_right],
+                interpolate=[
+                    self.sample.interpolate_left,
+                    self.sample.interpolate_right,
+                ],
                 smooth_factor=self.sample.interpolation_smoothing,
                 use=False,
             )
 
         self.interpolate_lines = [
-            self.ax.axvline(x, color="k", linewidth=1, visible=True)
+            self.ax.axvline(x, color="k", linewidth=1, visible=False)
             for x in [self.sample.interpolate_left, self.sample.interpolate_right]
         ]
 
@@ -210,7 +242,10 @@ class interpolation(ttk.Frame):
             self.sample.spectra.x, self.sample.spectra.signal.raw
         )
 
-        for line, x in zip(self.interpolate_lines, (self.sample.interpolate_left, self.sample.interpolate_right)):
+        for line, x in zip(
+            self.interpolate_lines,
+            (self.sample.interpolate_left, self.sample.interpolate_right),
+        ):
             line.set_xdata([x, x])
 
         # Calculate ymax and set axis limits
@@ -225,8 +260,7 @@ class interpolation(ttk.Frame):
         self.draw_interpolation()
 
     def update_interpolation_regions(self):
-        """ 
-        """
+        """ """
         polygon = np.array(
             [
                 [self.sample.interpolate_left, 0.0],
@@ -236,12 +270,13 @@ class interpolation(ttk.Frame):
             ]
         )
         self.interpolation_region.set_xy(polygon)
-        self.interpolation_region.set(color=self.interpolation_colors[self.sample.interpolate])
+        self.interpolation_region.set(
+            color=self.interpolation_colors[self.sample.interpolate]
+        )
         self.fig.canvas.draw_idle()
 
     def draw_interpolation(self):
-        """ 
-        """
+        """ """
         idx_interpolate = np.logical_and(
             self.sample.interpolate_right > self.sample.spectra.x,
             self.sample.spectra.x > self.sample.interpolate_left,
@@ -255,12 +290,15 @@ class interpolation(ttk.Frame):
         self.fig.canvas.draw_idle()
 
     def interpolate_check(self):
-        
+        """ """
         self.sample.interpolate = self.itp_var.get()
-        self.interpolation_region.set(color=self.interpolation_colors[self.sample.interpolate])
+        self.interpolation_region.set(
+            color=self.interpolation_colors[self.sample.interpolate]
+        )
         self.fig.canvas.draw_idle()
 
     def save_interpolation(self):
+        """ """
         if self.sample:
             self.sample.save_interpolation_settings()
             if self.sample.interpolate:
@@ -270,11 +308,11 @@ class interpolation(ttk.Frame):
             self.sample.spectra.longCorrect()
 
     def reset_interpolation(self):
+        """ """
         # Read old settings
         self.sample.read_interpolation()
         # Redraw complete plot
         self.update_plot()
-
 
     def validate_smoothing(self, value):
         """
@@ -298,9 +336,15 @@ class interpolation(ttk.Frame):
         return valid
 
     def invalid_smoothing(self, value):
+        """
+        
+        """
         self.smoothing_var.set(1)
 
     def set_interpolation_smoothing(self):
+        """
+        
+        """
         if self.sample:
             smoothing = float(self.smoothing_var.get())
             self.sample.interpolation_smoothing = smoothing
@@ -335,7 +379,10 @@ class interpolation(ttk.Frame):
             self.update_interpolation_regions()
             self.draw_interpolation()
             # Reset lines (they sometimes seem to move more than the interpolation regions)
-            for line, x in zip(self.interpolate_lines, (self.sample.interpolate_left, self.sample.interpolate_right)):
+            for line, x in zip(
+                self.interpolate_lines,
+                (self.sample.interpolate_left, self.sample.interpolate_right),
+            ):
                 line.set_xdata([x, x])
 
     def _on_motion(self, event):
