@@ -45,7 +45,8 @@ class data_processing:
         # Create dataframe to store processing parameters
         self.processing = pd.DataFrame({"name": self.names, "interpolate": False})
         self.processing["interpolate_left"] = int(self.settings.interpolate_left) 
-        self.processing["interpolate_right"] = int(self.settings.interpolate_right) 
+        self.processing["interpolate_right"] = int(self.settings.interpolate_right)
+        self.processing["interpolation_smoothing"] = self.settings.interpolation_smoothing
         self.processing["Si_bir"] = self.settings.Si_bir  
         self.processing["water_left"] = int(self.settings.H2O_left)
         self.processing["water_right"] = int(self.settings.H2O_right)

@@ -66,10 +66,8 @@ class main_window:
         self.menu_file.add_command(label="Load directory", command=self.load_directory)
         self.menu_file.add_separator()
         self.menu_file.add_command(label="Export results")
-        self.menu_file.add_command(
-            label="Export sample spectra")
-        self.menu_file.add_command(
-            label="Export bulk spectra")
+        self.menu_file.add_command(label="Export sample spectra")
+        self.menu_file.add_command(label="Export bulk spectra")
         # disable data export on intialisation
         for menu_item in [
             "Export results",
@@ -99,27 +97,27 @@ class main_window:
         samples.rowconfigure(0, weight=1)
         samples.columnconfigure(0, weight=1)
         main_frame.rowconfigure(0, weight=1)
-        main_frame.columnconfigure(0, weight=4)
+        main_frame.columnconfigure(0, weight=1)
 
         # Create tabs inside the main frame
-        panels = ttk.Notebook(main_frame)
-        self.water_calc = water_calc(panels, self)
-        interpolate = interpolation(panels, self)
-        subtract = subtraction(panels)
+        self.tabs = ttk.Notebook(main_frame)
+        self.water_calc = water_calc(self.tabs, self)
+        self.interpolation = interpolation(self.tabs, self)
+        self.subtract = subtraction(self.tabs)
         # Put the frames on the grid
-        panels.grid(column=0, row=0, sticky=("nesw"))
+        self.tabs.grid(column=0, row=0, sticky=("nesw"))
         self.water_calc.grid(column=0, row=0, sticky=("nesw"))
-        interpolate.grid(column=0, row=0, sticky=("nesw"))
-        subtract.grid(column=0, row=0, sticky=("nesw"))
+        self.interpolation.grid(column=0, row=0, sticky=("nesw"))
+        self.subtract.grid(column=0, row=0, sticky=("nesw"))
         # Label the notebook tabs
-        panels.add(self.water_calc, text="Baseline correction")
-        panels.add(interpolate, text="Interpolation")
-        panels.add(subtract, text="Crystal correction")
+        self.tabs.add(self.water_calc, text="Baseline correction")
+        self.tabs.add(self.interpolation, text="Interpolation")
+        self.tabs.add(self.subtract, text="Crystal correction")
         # Adjust resizability
-        panels.rowconfigure(0, weight=1)
-        panels.columnconfigure(0, weight=1)
+        self.tabs.rowconfigure(0, weight=1)
+        self.tabs.columnconfigure(0, weight=1)
         # trigger function on tab change
-        panels.bind("<<NotebookTabChanged>>", self.on_tab_change)
+        self.tabs.bind("<<NotebookTabChanged>>", self.on_tab_change)
 
         ##### POPULATE SAMPLES FRAME #####
         # List with all samples
@@ -180,8 +178,13 @@ class main_window:
             w.configure(state=tk.NORMAL)
         del w
         self.sample_list.selection_set(first=0)
-        self.current_sample = current_sample(self.data_bulk, 0)
-        self.water_calc.initiate_plot()
+        if not self.current_sample:
+            self.current_sample = current_sample(self.data_bulk, 0)
+            self.interpolation.initiate_plot()
+            self.water_calc.initiate_plot()            
+        else:
+            self.current_sample = current_sample(self.data_bulk, 0)
+            self.update_plots()
 
     def add_spectra(self):
         """ """
@@ -201,11 +204,40 @@ class main_window:
             self.samplesVar.set(list(self.data_bulk.names))
             self.sample_list.selection_set(current_selection)
 
+    def update_plots(self):
+
+        update = {
+            "Baseline correction": self.water_calc.update_plot,
+            "Interpolation": self.interpolation.update_plot,
+        }
+        current_tab = self.tabs.tab(self.tabs.select(), "text")
+        update[current_tab]()
+
+
+    def on_tab_change(self, event):
+        """
+        Refresh plot on the opened tab
+        """
+        tab = event.widget.tab("current")["text"]
+
+        update = {
+            "Baseline correction": self.water_calc.update_plot,
+            "Interpolation": self.interpolation.update_plot,
+        }
+
+        if self.current_sample:
+            # selected_sample = self.current_sample.index
+            update[tab]()
+
+
     def select_sample(self, index):
+        """
+        
+        """
         if index:
             selection = index[-1]
             self.current_sample = current_sample(self.data_bulk, selection)
-            self.water_calc.update_plot_sample()
+            self.update_plots()
 
     def next_sample(self):
         current = self.sample_list.curselection()
@@ -230,20 +262,6 @@ class main_window:
             self.sample_list.selection_set(new)
             self.sample_list.see(new)
             self.select_sample(self.sample_list.curselection())
-
-    def on_tab_change(self, event):
-        """
-        Refresh plot on the opened tab
-        """
-        tab = event.widget.tab("current")["text"]
-        if self.current_sample:
-            selected_sample = self.current_sample.index
-            if tab == "Baseline correction":
-                self.water_calc.update_plot_sample()
-            elif tab == "Interpolation":
-                return
-            elif tab == "Crystal correction":
-                return
 
     def export_results(self):
         dataframe = pd.concat(

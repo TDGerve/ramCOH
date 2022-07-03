@@ -53,16 +53,17 @@ class H2O(RamanProcessing):
         H2O_birs = np.array([[1500, min(H2O_boundaries)], [max(H2O_boundaries), 4000]])
         baseline_regions = np.concatenate((Si_birs, H2O_birs))
 
-        return super().baselineCorrect(baseline_regions=baseline_regions, **kwargs)
+        return super().baselineCorrect(y="long_corrected", baseline_regions=baseline_regions, **kwargs)
 
-    def interpolate(self, *, interpolate=[780, 900], smooth=1e-6, **kwargs):
+    def interpolate(self, *, interpolate=[780, 900], smooth_factor=1, **kwargs):
 
         birs = np.array(
             [[self.x.min(), min(interpolate)], [max(interpolate), self.x.max()]]
         )
 
-        y = kwargs.get("y", self._spectrumSelect)
-        spectrum = getattr(self.signal, y)
+        spectrum = getattr(self.signal, "raw")
+        smooth = smooth_factor * 1e-5
+        use = kwargs.get("use", True)
 
         xbir, ybir = f._extractBIR(self.x, spectrum, birs)
 
@@ -96,8 +97,9 @@ class H2O(RamanProcessing):
             self.interpolation_residuals[interpolate_index], self.x[interpolate_index]
         )
 
-        self._spectrumSelect = "interpolated"
-        self._processing["interpolated"] = True
+        if use:
+            self._spectrumSelect = "interpolated"
+            self._processing["interpolated"] = True
 
     def extract_olivine(
         self, olivine_x, olivine_y, *, peak_prominence=10, smooth=1e-6, **kwargs
