@@ -51,8 +51,8 @@ class settings:
         self.laser_var.set(self.laser_wavelength)
 
         # Plot Layout
-            # Set the plot layout
-        fontsize = 12
+        # Set the plot layout
+        fontsize = 6
         plot_layout(
             axTitleSize=fontsize,
             axLabelSize=fontsize,
