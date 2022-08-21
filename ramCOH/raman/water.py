@@ -1,7 +1,10 @@
+from email.mime import base
 import numpy as np
 import csaps as cs
 import scipy.optimize as opt
+import scipy.interpolate as itp
 from warnings import warn
+
 
 from ..signal_processing import functions as f
 from ..signal_processing import curve_fitting as cf
@@ -54,7 +57,9 @@ class H2O(RamanProcessing):
         H2O_birs = np.array([[1500, min(H2O_boundaries)], [max(H2O_boundaries), 4000]])
         baseline_regions = np.concatenate((Si_birs, H2O_birs))
 
-        return super().baselineCorrect(y="long_corrected", baseline_regions=baseline_regions, **kwargs)
+        return super().baselineCorrect(
+            y="long_corrected", baseline_regions=baseline_regions, **kwargs
+        )
 
     def interpolate(self, *, interpolate=[780, 900], smooth_factor=1, **kwargs):
 
@@ -101,6 +106,73 @@ class H2O(RamanProcessing):
         if use:
             self._spectrumSelect = "interpolated"
             self._processing["interpolated"] = True
+
+    def _interpolate_olivine_peaks(self, olivine_free_regions, smooth=1e-6, **kwargs):
+
+        spectrum = getattr(self.signal, "raw")
+
+        xbir, ybir = f._extractBIR(self.x, spectrum, olivine_free_regions)
+
+        spline_model = cs.csaps(xbir, ybir, smooth=smooth)
+        spline = spline_model(self.x)
+
+        return spline
+
+    @staticmethod
+    def _root_olivine_interference(scaling, x, x_range, olivine, glass, glass_interpolated):
+
+        scale, shift = scaling
+        x_min, x_max = x_range
+        # Trim glass spectra to length
+        glass = glass[(x > x_min) & (x < x_max)]
+        glass_interpolated = glass_interpolated[(x > x_min) & (x < x_max)]
+        # Trim and scale olivine spectrum
+        olivine_scaled = (
+            olivine[(x > (x_min + shift)) & (x < (x_max + shift))] * scale
+        )
+        # Subtract olivine
+        glass_corrected = glass - olivine_scaled
+
+        return [sum(abs(glass_interpolated - glass_corrected)), 0]
+
+    def subtract_olivine_host(
+        self, olivine: Olivine, boundaries=[700, 1020], inplace=False, **kwargs
+    ):
+        if not hasattr(olivine.signal, "baseline_corrected"):
+            raise NameError("Apply baseline correction to olivine first")
+
+        x_min, x_max = min(olivine.x), max(olivine.x)
+
+        boundary_left, boundary_right = boundaries
+        x_range = (self.x > x_min) & (self.x < x_max)
+        x = self.x[x_range]
+
+        glass_spectrum = getattr(self.signal, "raw")[x_range]
+        glass_spline = self._interpolate_olivine_peaks(olivine_free_regions=olivine.birs)[x_range]
+
+        olivine_interpolation_model = itp.interp1d(olivine.x, olivine.signal.baseline_corrected)
+        olivine_y = olivine_interpolation_model(x)
+
+        olivine_scaling = opt.root(
+            self._root_olivine_interference,
+            x0=[0.2, 0],
+            args=(x, [boundary_left, boundary_right], olivine_y, glass_spectrum, glass_spline),
+        ).x
+
+        scale, shift = olivine_scaling
+        olivine_x = x + shift
+        olivine_y = olivine_y * scale
+
+        glass_corrected = glass_spectrum - olivine_y
+
+        # if inplace:
+        #     setattr(self.signal, "olivine_corrected", olivine_corrected)
+        #     self._spectrumSelect = "olivine_corrected"
+        #     self._processing["olivine_corrected"] = True
+        # else:
+        return olivine_x, olivine_y, glass_corrected, glass_spline
+
+
 
     def extract_olivine(
         self, olivine_x, olivine_y, *, peak_prominence=10, smooth=1e-6, **kwargs

@@ -283,7 +283,7 @@ class main_window:
         Export processed spectra for a single sample
         """
 
-        sample = self.current_sample.spectra
+        sample = self.current_sample.sample
         name = self.current_sample.name
         # Raw data
         dataframe = pd.DataFrame({"x": sample.x})
@@ -316,7 +316,7 @@ class main_window:
             print("Exporting files cancelled by user")
             return
 
-        for i, sample in self.data_bulk.spectra.items():
+        for i, sample in self.data_bulk.samples.items():
             name = self.data_bulk.names[i]
             # Raw data
             dataframe = pd.DataFrame({"x": sample.x})

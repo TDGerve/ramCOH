@@ -31,7 +31,7 @@ class data_processing:
         self.files = tuple(files)
         self.names = self.get_names_from_files(files)
 
-        self.spectra = {}
+        self.samples = {}
         self.model = getattr(ram, modeltype)
         self.sample_selected = None
         self.sample_name = None
@@ -72,11 +72,11 @@ class data_processing:
         laser = self.settings.laser_var.get()
         for i, f in enumerate(self.files):
             x, y = np.genfromtxt(f, unpack=True)
-            self.spectra[i] = self.model(x, y, laser=laser)
-            self.spectra[i].longCorrect()
-            self.spectra[i].baselineCorrect(smooth_factor=self.smooth_factor)
-            self.spectra[i].calculate_SiH2Oareas()
-            Si_area, H2O_area = self.spectra[i].SiH2Oareas
+            self.samples[i] = self.model(x, y, laser=laser)
+            self.samples[i].longCorrect()
+            self.samples[i].baselineCorrect(smooth_factor=self.smooth_factor)
+            self.samples[i].calculate_SiH2Oareas()
+            Si_area, H2O_area = self.samples[i].SiH2Oareas
             self.results.loc[i, ["SiArea", "H2Oarea"]] = Si_area, H2O_area
             self.results.loc[i, "rWS"] = H2O_area / Si_area
         self.sample_selected = 0
@@ -93,12 +93,12 @@ class data_processing:
         self.files = self.files + tuple([file])
         # Load and processes spectrum
         x, y = np.genfromtxt(file, unpack=True)
-        self.spectra[index] = self.model(x, y, laser=laser)
-        self.spectra[index].longCorrect()
-        self.spectra[index].baselineCorrect(smooth_factor=1)
-        self.spectra[index].calculate_SiH2Oareas()
+        self.samples[index] = self.model(x, y, laser=laser)
+        self.samples[index].longCorrect()
+        self.samples[index].baselineCorrect(smooth_factor=1)
+        self.samples[index].calculate_SiH2Oareas()
         # Calculate areas
-        Si_area, H2O_area = self.spectra[index].SiH2Oareas
+        Si_area, H2O_area = self.samples[index].SiH2Oareas
         # Add sample to the results and processing dataframes
         new_processing = pd.Series(
             {
@@ -124,7 +124,7 @@ class data_processing:
 
 
     def batch_recalculate(self, save=True):
-        for i, sample in self.spectra.items():
+        for i, sample in self.samples.items():
 
             H2O_left, H2O_right = self.processing.loc[i, ["water_left", "water_right"]]
             Si_birs_select = int(self.processing.loc[i, "Si_bir"])

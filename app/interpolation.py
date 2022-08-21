@@ -167,47 +167,48 @@ class interpolation(ttk.Frame):
         ]:
             widget.configure(state=tk.NORMAL)
 
-        self.sample = self.app.current_sample
-        self.old_spectrum = self.sample.spectra._spectrumSelect
-        self.smoothing_var.set(self.sample.interpolation_smoothing)
-        self.itp_var.set(str(self.sample.interpolate))
-        if not hasattr(self.sample.spectra.signal, "interpolated"):
-            self.sample.spectra.interpolate(
+        self.sample_info = self.app.current_sample
+        sample = self.sample_info.sample
+        self.old_spectrum = sample._spectrumSelect
+        self.smoothing_var.set(self.sample_info.interpolation_smoothing)
+        self.itp_var.set(str(self.sample_info.interpolate))
+        if not hasattr(sample.signal, "interpolated"):
+            sample.interpolate(
                 interpolate=[
-                    self.sample.interpolate_left,
-                    self.sample.interpolate_right,
+                    self.sample_info.interpolate_left,
+                    self.sample_info.interpolate_right,
                 ],
-                smooth_factor=self.sample.interpolation_smoothing,
+                smooth_factor=self.sample_info.interpolation_smoothing,
                 use=False,
             )
 
         self.interpolate_lines = [
             self.ax.axvline(x, color="k", linewidth=1, visible=False)
-            for x in [self.sample.interpolate_left, self.sample.interpolate_right]
+            for x in [self.sample_info.interpolate_left, self.sample_info.interpolate_right]
         ]
 
         # Calculate ymax and set axis limits
         idx_xaxis = np.logical_and(
-            self.xmax > self.sample.spectra.x, self.sample.spectra.x > self.xmin
+            self.xmax > sample.x, sample.x > self.xmin
         )
-        y_max = np.max(self.sample.spectra.signal.raw[idx_xaxis]) * 1.2
+        y_max = np.max(sample.signal.raw[idx_xaxis]) * 1.2
         self.ax.set_ylim(0, y_max * 1.05)
         self.ax.set_xlim(self.xmin, self.xmax)
         # indeces for interpolation
         idx_interpolate = np.logical_and(
-            self.sample.interpolate_right > self.sample.spectra.x,
-            self.sample.spectra.x > self.sample.interpolate_left,
+            self.sample_info.interpolate_right > sample.x,
+            sample.x > self.sample_info.interpolate_left,
         )
         # Plot spectra
         (self.raw_spectrum,) = self.ax.plot(
-            self.sample.spectra.x,
-            self.sample.spectra.signal.raw,
+            sample.x,
+            sample.signal.raw,
             color=self.colors[0],
             label="raw",
         )
         (self.interpolated,) = self.ax.plot(
-            self.sample.spectra.x[idx_interpolate],
-            self.sample.spectra.signal.interpolated[idx_interpolate],
+            sample.x[idx_interpolate],
+            sample.signal.interpolated[idx_interpolate],
             color=self.colors[3],
             alpha=0.6,
             label="interpolated",
@@ -215,10 +216,10 @@ class interpolation(ttk.Frame):
         )
         # plot interpolation region
         self.interpolation_region = self.ax.axvspan(
-            self.sample.interpolate_left,
-            self.sample.interpolate_right,
+            self.sample_info.interpolate_left,
+            self.sample_info.interpolate_right,
             alpha=0.3,
-            color=self.interpolation_colors[self.sample.interpolate],
+            color=self.interpolation_colors[self.sample_info.interpolate],
             edgecolor=None,
         )
 
@@ -231,28 +232,29 @@ class interpolation(ttk.Frame):
 
     def update_plot(self):
         """ """
-        self.sample = self.app.current_sample
-        self.old_spectrum = self.sample.spectra._spectrumSelect
-        self.smoothing_var.set(self.sample.interpolation_smoothing)
-        self.itp_var.set(str(self.sample.interpolate))
-        if not hasattr(self.sample.spectra.signal, "interpolated"):
-            self.sample.recalculate_interpolation()
+        self.sample_info = self.app.current_sample
+        sample = self.sample_info.sample
+        self.old_spectrum = sample._spectrumSelect
+        self.smoothing_var.set(self.sample_info.interpolation_smoothing)
+        self.itp_var.set(str(self.sample_info.interpolate))
+        if not hasattr(sample.signal, "interpolated"):
+            self.sample_info.recalculate_interpolation()
 
         self.raw_spectrum.set_data(
-            self.sample.spectra.x, self.sample.spectra.signal.raw
+            sample.x, sample.signal.raw
         )
 
         for line, x in zip(
             self.interpolate_lines,
-            (self.sample.interpolate_left, self.sample.interpolate_right),
+            (self.sample_info.interpolate_left, self.sample_info.interpolate_right),
         ):
             line.set_xdata([x, x])
 
         # Calculate ymax and set axis limits
         idx_xaxis = np.logical_and(
-            self.xmax > self.sample.spectra.x, self.sample.spectra.x > self.xmin
+            self.xmax > sample.x, sample.x > self.xmin
         )
-        y_max = np.max(self.sample.spectra.signal.raw[idx_xaxis]) * 1.2
+        y_max = np.max(sample.signal.raw[idx_xaxis]) * 1.2
         self.ax.set_ylim(0, y_max * 1.05)
         self.ax.set_xlim(self.xmin, self.xmax)
 
@@ -263,54 +265,57 @@ class interpolation(ttk.Frame):
         """ """
         polygon = np.array(
             [
-                [self.sample.interpolate_left, 0.0],
-                [self.sample.interpolate_left, 1.0],
-                [self.sample.interpolate_right, 1.0],
-                [self.sample.interpolate_right, 0.0],
+                [self.sample_info.interpolate_left, 0.0],
+                [self.sample_info.interpolate_left, 1.0],
+                [self.sample_info.interpolate_right, 1.0],
+                [self.sample_info.interpolate_right, 0.0],
             ]
         )
         self.interpolation_region.set_xy(polygon)
         self.interpolation_region.set(
-            color=self.interpolation_colors[self.sample.interpolate]
+            color=self.interpolation_colors[self.sample_info.interpolate]
         )
         self.fig.canvas.draw_idle()
 
     def draw_interpolation(self):
         """ """
+        sample = self.sample_info.sample
         idx_interpolate = np.logical_and(
-            self.sample.interpolate_right > self.sample.spectra.x,
-            self.sample.spectra.x > self.sample.interpolate_left,
+            self.sample_info.interpolate_right > sample.x,
+            sample.x > self.sample_info.interpolate_left,
         )
-        self.sample.recalculate_interpolation()
+        self.sample_info.recalculate_interpolation()
 
         self.interpolated.set_data(
-            self.sample.spectra.x[idx_interpolate],
-            self.sample.spectra.signal.interpolated[idx_interpolate],
+            sample.x[idx_interpolate],
+            sample.signal.interpolated[idx_interpolate],
         )
         self.fig.canvas.draw_idle()
 
     def interpolate_check(self):
         """ """
-        self.sample.interpolate = self.itp_var.get()
+        self.sample_info.interpolate = self.itp_var.get()
         self.interpolation_region.set(
-            color=self.interpolation_colors[self.sample.interpolate]
+            color=self.interpolation_colors[self.sample_info.interpolate]
         )
         self.fig.canvas.draw_idle()
 
     def save_interpolation(self):
         """ """
-        if self.sample:
-            self.sample.save_interpolation_settings()
-            if self.sample.interpolate:
-                self.sample.spectra._spectrumSelect = "interpolated"
+        
+        if self.sample_info:
+            sample = self.sample_info.sample
+            self.sample_info.save_interpolation_settings()
+            if self.sample_info.interpolate:
+                sample._spectrumSelect = "interpolated"
             else:
-                self.sample.spectra._spectrumSelect = self.old_spectrum
-            self.sample.spectra.longCorrect()
+                sample._spectrumSelect = self.old_spectrum
+            sample.longCorrect()
 
     def reset_interpolation(self):
         """ """
         # Read old settings
-        self.sample.read_interpolation()
+        self.sample_info.read_interpolation()
         # Redraw complete plot
         self.update_plot()
 
@@ -347,7 +352,7 @@ class interpolation(ttk.Frame):
         """
         if self.sample:
             smoothing = float(self.smoothing_var.get())
-            self.sample.interpolation_smoothing = smoothing
+            self.sample_info.interpolation_smoothing = smoothing
             self.draw_interpolation()
 
     def _on_click(self, event):
@@ -370,9 +375,9 @@ class interpolation(ttk.Frame):
             # self._dragging_line.remove()
             id = self._dragging_line_id
             if id == 0:
-                self.sample.interpolate_left = round(new_x, -1)
+                self.sample_info.interpolate_left = round(new_x, -1)
             elif id == 1:
-                self.sample.interpolate_right = round(new_x, -1)
+                self.sample_info.interpolate_right = round(new_x, -1)
             self._dragging_line = None
             self._dragging_line_id = None
             # Recalculate and refresh interpolation
@@ -381,7 +386,7 @@ class interpolation(ttk.Frame):
             # Reset lines (they sometimes seem to move more than the interpolation regions)
             for line, x in zip(
                 self.interpolate_lines,
-                (self.sample.interpolate_left, self.sample.interpolate_right),
+                (self.sample_info.interpolate_left, self.sample_info.interpolate_right),
             ):
                 line.set_xdata([x, x])
 
@@ -395,13 +400,13 @@ class interpolation(ttk.Frame):
                 # self.fig.canvas.draw_idle()
                 id = self._dragging_line_id
                 if id == 0:
-                    if new_x > self.sample.interpolate_right:
-                        new_x = self.sample.interpolate_right - 20
-                    self.sample.interpolate_left = new_x
+                    if new_x > self.sample_info.interpolate_right:
+                        new_x = self.sample_info.interpolate_right - 20
+                    self.sample_info.interpolate_left = new_x
                 elif id == 1:
-                    if new_x < self.sample.interpolate_left:
-                        new_x = self.sample.interpolate_left + 20
-                    self.sample.interpolate_right = new_x
+                    if new_x < self.sample_info.interpolate_left:
+                        new_x = self.sample_info.interpolate_left + 20
+                    self.sample_info.interpolate_right = new_x
                 y = self._dragging_line.get_ydata()
                 self._dragging_line.set_data([new_x, new_x], y)
                 # Recalculate and refresh interpolation

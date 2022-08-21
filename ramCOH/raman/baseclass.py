@@ -67,10 +67,10 @@ class RamanProcessing:
         y = kwargs.get("y", self._spectrumSelect)
         spectrum = getattr(self.signal, y)
 
-        if (hasattr(self, "birs")) & (baseline_regions is None):
-            baseline_regions = self.birs
-        else:
-            self.birs = baseline_regions
+        if (hasattr(self, "birs_default")) & (baseline_regions is None):
+            baseline_regions = self.birs_default
+        
+        self.birs = baseline_regions
 
         if (hasattr(self.signal, "normalised")):
             warn("run normalisation again to normalise baseline corrected spectrum")

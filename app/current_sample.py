@@ -1,11 +1,8 @@
-from sympy import interpolate
-
-
 class current_sample:
     def __init__(self, dataset, index):
         self.dataset = dataset
         self.index = index
-        self.spectra = dataset.spectra[index]
+        self.sample = dataset.samples[index]
         self.name = dataset.names[index]
         # Interpolation settings
         self.read_interpolation()
@@ -33,7 +30,7 @@ class current_sample:
 
     def recalculate_interpolation(self):
         """ """
-        self.spectra.interpolate(
+        self.sample.interpolate(
             interpolate=[self.interpolate_left, self.interpolate_right],
             smooth_factor=self.interpolation_smoothing,
             use=False,
@@ -45,7 +42,7 @@ class current_sample:
 
         Si_bir = self.dataset.Si_birs[self.Si_birs_select]
 
-        self.spectra.baselineCorrect(
+        self.sample.baselineCorrect(
             Si_birs=Si_bir,
             H2O_boundaries=[round(self.H2O_left, -1), round(self.H2O_right, -1)],
             smooth_factor=smooth_factor,
@@ -53,8 +50,8 @@ class current_sample:
 
     def recalculate_areas(self):
         """ """
-        self.spectra.calculate_SiH2Oareas()
-        self.Si_area, self.H2O_area = self.spectra.SiH2Oareas
+        self.sample.calculate_SiH2Oareas()
+        self.Si_area, self.H2O_area = self.sample.SiH2Oareas
 
     def save_interpolation_settings(self):
         """ """
