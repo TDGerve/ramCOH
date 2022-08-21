@@ -2,28 +2,9 @@ from tkinter import ttk
 import tkinter as tk
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
-
-class VerticalNavigationToolbar2Tk(NavigationToolbar2Tk):
-    def __init__(self, canvas, window):
-        super().__init__(canvas, window, pack_toolbar=False)
-
-    # override _Button() to re-pack the toolbar button in vertical direction
-    def _Button(self, text, image_file, toggle, command):
-        b = super()._Button(text, image_file, toggle, command)
-        b.pack(side=tk.TOP)  # re-pack button in vertical direction
-        return b
-
-    # override _Spacer() to create vertical separator
-    def _Spacer(self):
-        s = tk.Frame(self, width=26, relief=tk.RIDGE, bg="DarkGray", padx=2)
-        s.pack(side=tk.TOP, pady=5)  # pack in vertical direction
-        return s
-
-    # disable showing mouse position in toolbar
-    def set_message(self, s):
-        pass
+from toolbar_vertical import vertical_toolbar
 
 
 class interpolation(ttk.Frame):
@@ -44,7 +25,7 @@ class interpolation(ttk.Frame):
     def __init__(self, parent, app):
         super().__init__(parent)
         self.app = app
-        self.sample = None
+        self.sample_info = None
 
         font = app.font
         fontsize = app.fontsize
@@ -75,7 +56,7 @@ class interpolation(ttk.Frame):
         self.canvas.draw()
         self.canvas.get_tk_widget().grid(row=0, column=0, sticky=("nesw"))
         # Plot navigation toolbar
-        toolbar = VerticalNavigationToolbar2Tk(self.canvas, toolbar_frame)
+        toolbar = vertical_toolbar(self.canvas, toolbar_frame)
         # Don't pack 'configure subplots' and 'save figure'
         toolbar.children["!button4"].pack_forget()
         toolbar.children["!button5"].pack_forget()

@@ -419,7 +419,7 @@ class water_calc(ttk.Frame):
         Docstring
         """
         self.sample_info = self.app.current_sample
-        sample = self.sample_info
+        sample = self.sample_info.sample
 
         spectrum_select = sample._spectrumSelect
         spectrum_label = spectrum_select.replace("_", " ")

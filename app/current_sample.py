@@ -3,6 +3,7 @@ class current_sample:
         self.dataset = dataset
         self.index = index
         self.sample = dataset.samples[index]
+        self.host_crystal = dataset.host_crystals[index]
         self.name = dataset.names[index]
         # Interpolation settings
         self.read_interpolation()
@@ -52,6 +53,11 @@ class current_sample:
         """ """
         self.sample.calculate_SiH2Oareas()
         self.Si_area, self.H2O_area = self.sample.SiH2Oareas
+
+    def recalculate_host_crystal(self, baseline_regions):
+
+        self.host_crystal.baselineCorrect(baseline_regions=baseline_regions)   
+
 
     def save_interpolation_settings(self):
         """ """

@@ -32,6 +32,7 @@ class data_processing:
         self.names = self.get_names_from_files(files)
 
         self.samples = {}
+        self.host_crystals = {}
         self.model = getattr(ram, modeltype)
         self.sample_selected = None
         self.sample_name = None
@@ -79,6 +80,8 @@ class data_processing:
             Si_area, H2O_area = self.samples[i].SiH2Oareas
             self.results.loc[i, ["SiArea", "H2Oarea"]] = Si_area, H2O_area
             self.results.loc[i, "rWS"] = H2O_area / Si_area
+
+            self.host_crystals[i] = None
         self.sample_selected = 0
         self.sample_name = self.names[self.sample_selected]
 
@@ -121,6 +124,13 @@ class data_processing:
             }, name=index
         )
         self.results.loc[index] = new_result
+
+    def add_host_crystal(self, index, file, phase):
+        laser = self.settings.laser_var.get()
+        model = getattr(ram, phase)
+        x, y = np.genfromtxt(file, unpack=True)
+        self.host_crystals[index] = model(x, y, laser=laser)
+        self.host_crystals[index].baselineCorrect()
 
 
     def batch_recalculate(self, save=True):

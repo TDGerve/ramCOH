@@ -107,7 +107,7 @@ class main_window:
         self.tabs = ttk.Notebook(main_frame)
         self.water_calc = water_calc(self.tabs, self)
         self.interpolation = interpolation(self.tabs, self)
-        self.subtract = subtraction(self.tabs)
+        self.subtract = subtraction(self.tabs, self)
         # Put the frames on the grid
         self.tabs.grid(column=0, row=0, sticky=("nesw"))
         self.water_calc.grid(column=0, row=0, sticky=("nesw"))
@@ -116,7 +116,7 @@ class main_window:
         # Label the notebook tabs
         self.tabs.add(self.water_calc, text="Baseline correction")
         self.tabs.add(self.interpolation, text="Interpolation")
-        self.tabs.add(self.subtract, text="Crystal correction")
+        self.tabs.add(self.subtract, text="Host correction")
         # Adjust resizability
         self.tabs.rowconfigure(0, weight=1)
         self.tabs.columnconfigure(0, weight=1)
@@ -185,7 +185,8 @@ class main_window:
         if not self.current_sample:
             self.current_sample = current_sample(self.data_bulk, 0)
             self.interpolation.initiate_plot()
-            self.water_calc.initiate_plot()            
+            self.water_calc.initiate_plot()
+            self.subtract.initiate_plot()            
         else:
             self.current_sample = current_sample(self.data_bulk, 0)
             self.update_plots()
@@ -213,6 +214,7 @@ class main_window:
         update = {
             "Baseline correction": self.water_calc.update_plot,
             "Interpolation": self.interpolation.update_plot,
+            "Host correction": self.subtract.update_plot
         }
         current_tab = self.tabs.tab(self.tabs.select(), "text")
         update[current_tab]()
@@ -227,6 +229,7 @@ class main_window:
         update = {
             "Baseline correction": self.water_calc.update_plot,
             "Interpolation": self.interpolation.update_plot,
+            "Host correction": self.subtract.update_plot
         }
 
         if self.current_sample:
@@ -242,6 +245,7 @@ class main_window:
             selection = index[-1]
             self.current_sample = current_sample(self.data_bulk, selection)
             self.update_plots()
+
 
     def next_sample(self):
         current = self.sample_list.curselection()
