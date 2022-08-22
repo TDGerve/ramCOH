@@ -1,5 +1,4 @@
 import numpy as np
-from attr import has
 from .baseclass import RamanProcessing
 
 
