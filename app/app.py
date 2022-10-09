@@ -13,6 +13,16 @@ from subtraction import subtraction
 from current_sample import current_sample
 
 
+# Move all constants and settings outside the code
+
+# Don't store widgets in variables, but give them names and call them from their parent, see:
+# https://stackoverflow.com/questions/71902896/tkinter-access-specifc-widgets-created-with-for-loop/71906287#71906287
+
+# Set up draw methods to create the GUI, instead of doing it inside the initialiser
+
+# Separate all GUI code from datamanagement and calculations
+
+
 class main_window:
     def __init__(self, root, *args, **kwargs):
         """
@@ -30,7 +40,7 @@ class main_window:
         self.fontsize = 13
         self.bgClr = style.lookup(theme, "background")
         # calculate background color to something matplotlib understands
-        self.bgClr_plt = tuple((c / 2 ** 16 for c in root.winfo_rgb(self.bgClr)))
+        self.bgClr_plt = tuple((c / 2**16 for c in root.winfo_rgb(self.bgClr)))
 
         root.title("ramCOH by T. D. van Gerve")
 
@@ -186,7 +196,7 @@ class main_window:
             self.current_sample = current_sample(self.data_bulk, 0)
             self.interpolation.initiate_plot()
             self.water_calc.initiate_plot()
-            self.subtract.initiate_plot()            
+            self.subtract.initiate_plot()
         else:
             self.current_sample = current_sample(self.data_bulk, 0)
             self.update_plots()
@@ -214,11 +224,10 @@ class main_window:
         update = {
             "Baseline correction": self.water_calc.update_plot,
             "Interpolation": self.interpolation.update_plot,
-            "Host correction": self.subtract.update_plot
+            "Host correction": self.subtract.update_plot,
         }
         current_tab = self.tabs.tab(self.tabs.select(), "text")
         update[current_tab]()
-
 
     def on_tab_change(self, event):
         """
@@ -229,23 +238,19 @@ class main_window:
         update = {
             "Baseline correction": self.water_calc.update_plot,
             "Interpolation": self.interpolation.update_plot,
-            "Host correction": self.subtract.update_plot
+            "Host correction": self.subtract.update_plot,
         }
 
         if self.current_sample:
             # selected_sample = self.current_sample.index
             update[tab]()
 
-
     def select_sample(self, index):
-        """
-        
-        """
+        """ """
         if index:
             selection = index[-1]
             self.current_sample = current_sample(self.data_bulk, selection)
             self.update_plots()
-
 
     def next_sample(self):
         current = self.sample_list.curselection()
