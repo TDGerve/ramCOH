@@ -6,7 +6,7 @@ import itertools as it
 
 class neon(RamanProcessing):
     # Baseline regions
-    birs = np.array(
+    birs_default = np.array(
         [
             [1027, 1108],
             [1118, 1213],

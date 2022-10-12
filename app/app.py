@@ -13,6 +13,16 @@ from subtraction import subtraction
 from current_sample import current_sample
 
 
+# Move all constants and settings outside the code
+
+# Don't store widgets in variables, but give them names and call them from their parent, see:
+# https://stackoverflow.com/questions/71902896/tkinter-access-specifc-widgets-created-with-for-loop/71906287#71906287
+
+# Set up draw methods to create the GUI, instead of doing it inside the initialiser
+
+# Separate all GUI code from datamanagement and calculations
+
+
 class main_window:
     def __init__(self, root, *args, **kwargs):
         """
@@ -30,13 +40,13 @@ class main_window:
         self.fontsize = 13
         self.bgClr = style.lookup(theme, "background")
         # calculate background color to something matplotlib understands
-        self.bgClr_plt = tuple((c / 2 ** 16 for c in root.winfo_rgb(self.bgClr)))
+        self.bgClr_plt = tuple((c / 2**16 for c in root.winfo_rgb(self.bgClr)))
 
         root.title("ramCOH by T. D. van Gerve")
 
         # Set some geometries
-        root.minsize(1000, 900)
-        root.geometry("1000x900")
+        root.minsize(1000, 830)
+        root.geometry("1200x1000")
         root.resizable(True, True)
         sizegrip = ttk.Sizegrip(root)
         sizegrip.grid(row=7, sticky=("se"))
@@ -101,27 +111,27 @@ class main_window:
         samples.rowconfigure(0, weight=1)
         samples.columnconfigure(0, weight=1)
         main_frame.rowconfigure(0, weight=1)
-        main_frame.columnconfigure(0, weight=4)
+        main_frame.columnconfigure(0, weight=1)
 
         # Create tabs inside the main frame
-        panels = ttk.Notebook(main_frame)
-        self.water_calc = water_calc(panels, self)
-        interpolate = interpolation(panels, self)
-        subtract = subtraction(panels)
+        self.tabs = ttk.Notebook(main_frame)
+        self.water_calc = water_calc(self.tabs, self)
+        self.interpolation = interpolation(self.tabs, self)
+        self.subtract = subtraction(self.tabs, self)
         # Put the frames on the grid
-        panels.grid(column=0, row=0, sticky=("nesw"))
+        self.tabs.grid(column=0, row=0, sticky=("nesw"))
         self.water_calc.grid(column=0, row=0, sticky=("nesw"))
-        interpolate.grid(column=0, row=0, sticky=("nesw"))
-        subtract.grid(column=0, row=0, sticky=("nesw"))
+        self.interpolation.grid(column=0, row=0, sticky=("nesw"))
+        self.subtract.grid(column=0, row=0, sticky=("nesw"))
         # Label the notebook tabs
-        panels.add(self.water_calc, text="Baseline correction")
-        panels.add(interpolate, text="Interpolation")
-        panels.add(subtract, text="Crystal correction")
+        self.tabs.add(self.water_calc, text="Baseline correction")
+        self.tabs.add(self.interpolation, text="Interpolation")
+        self.tabs.add(self.subtract, text="Host correction")
         # Adjust resizability
-        panels.rowconfigure(0, weight=1)
-        panels.columnconfigure(0, weight=1)
+        self.tabs.rowconfigure(0, weight=1)
+        self.tabs.columnconfigure(0, weight=1)
         # trigger function on tab change
-        panels.bind("<<NotebookTabChanged>>", self.on_tab_change)
+        self.tabs.bind("<<NotebookTabChanged>>", self.on_tab_change)
 
         ##### POPULATE SAMPLES FRAME #####
         # List with all samples
@@ -182,8 +192,14 @@ class main_window:
             w.configure(state=tk.NORMAL)
         del w
         self.sample_list.selection_set(first=0)
-        self.current_sample = current_sample(self.data_bulk, 0)
-        self.water_calc.initiate_plot()
+        if not self.current_sample:
+            self.current_sample = current_sample(self.data_bulk, 0)
+            self.interpolation.initiate_plot()
+            self.water_calc.initiate_plot()
+            self.subtract.initiate_plot()
+        else:
+            self.current_sample = current_sample(self.data_bulk, 0)
+            self.update_plots()
 
     def add_spectra(self):
         """ """
@@ -203,11 +219,38 @@ class main_window:
             self.samplesVar.set(list(self.data_bulk.names))
             self.sample_list.selection_set(current_selection)
 
+    def update_plots(self):
+
+        update = {
+            "Baseline correction": self.water_calc.update_plot,
+            "Interpolation": self.interpolation.update_plot,
+            "Host correction": self.subtract.update_plot,
+        }
+        current_tab = self.tabs.tab(self.tabs.select(), "text")
+        update[current_tab]()
+
+    def on_tab_change(self, event):
+        """
+        Refresh plot on the opened tab
+        """
+        tab = event.widget.tab("current")["text"]
+
+        update = {
+            "Baseline correction": self.water_calc.update_plot,
+            "Interpolation": self.interpolation.update_plot,
+            "Host correction": self.subtract.update_plot,
+        }
+
+        if self.current_sample:
+            # selected_sample = self.current_sample.index
+            update[tab]()
+
     def select_sample(self, index):
+        """ """
         if index:
             selection = index[-1]
             self.current_sample = current_sample(self.data_bulk, selection)
-            self.water_calc.update_plot_sample()
+            self.update_plots()
 
     def next_sample(self):
         current = self.sample_list.curselection()
@@ -233,20 +276,6 @@ class main_window:
             self.sample_list.see(new)
             self.select_sample(self.sample_list.curselection())
 
-    def on_tab_change(self, event):
-        """
-        Refresh plot on the opened tab
-        """
-        tab = event.widget.tab("current")["text"]
-        if self.current_sample:
-            selected_sample = self.current_sample.index
-            if tab == "Baseline correction":
-                self.water_calc.update_plot_sample()
-            elif tab == "Interpolation":
-                return
-            elif tab == "Crystal correction":
-                return
-
     def export_results(self):
         dataframe = pd.concat(
             [self.data_bulk.processing, self.data_bulk.results.drop(columns=["name"])],
@@ -263,7 +292,7 @@ class main_window:
         Export processed spectra for a single sample
         """
 
-        sample = self.current_sample.spectra
+        sample = self.current_sample.sample
         name = self.current_sample.name
         # Raw data
         dataframe = pd.DataFrame({"x": sample.x})
@@ -296,7 +325,7 @@ class main_window:
             print("Exporting files cancelled by user")
             return
 
-        for i, sample in self.data_bulk.spectra.items():
+        for i, sample in self.data_bulk.samples.items():
             name = self.data_bulk.names[i]
             # Raw data
             dataframe = pd.DataFrame({"x": sample.x})

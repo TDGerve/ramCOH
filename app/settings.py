@@ -34,13 +34,14 @@ class settings:
         """
         Default settings imported from json:
         ---------------------------
-        laser_wavelength    float
-        name_separator      str     
-        Si_bir              str
-        H2O_left            int
-        H2O_right           int
-        interpolate_left    int
-        interpolate_right   int
+        laser_wavelength        float
+        name_separator          str     
+        Si_bir                  str
+        H2O_left                int
+        H2O_right               int
+        interpolate_left        int
+        interpolate_right       int
+        interpolation_smoothing int, float
         """
         # File settings
         self.name_separator_var = tk.StringVar()
@@ -150,30 +151,32 @@ class settings:
         # for column in range(column_max):
         #     window.columnconfigure(column, weight=1)
 
+        padding = 20
+
         birs_title = ttk.Label(text="Baseline interpolation regions", font=(self.app.font, "14", "bold"))
-        bir_label_frame = ttk.Labelframe(window, text="Baseline interpolation\nregions")
+        bir_label_frame = ttk.Labelframe(window, text="Silicate interpolation\nregions", padding=padding)
         bir_label_frame.grid(row=0, column=0, sticky=("nesw"))
 
         bir_frames = []
         for i in range(bir_number):
             bir_frame = ttk.Frame(bir_label_frame)
-            bir_frame.grid(row=int(i / column_max), column=int(i % column_max), sticky=("new"))
+            bir_frame.grid(row=int(i / column_max), column=int(i % column_max), sticky=("nesw"))
             bir_frames.append(bir_frame)
         
         for i, (name, bir) in enumerate(birs.items()):
             ttk.Label(bir_frames[i], text=name, font=(self.app.font, "14", "bold")).grid(row=0, column=0, sticky=("nesw"))
             ttk.Separator(bir_frames[i], orient=tk.HORIZONTAL).grid(row=0, column=0, sticky=("sew"))
             for j, region in enumerate(bir):
-                text = f"{region[0]} - {region[1]}"
+                text = f"{region[0]:<5}-{region[1]:>5}"
                 if j +1 == len(bir):
-                    text = f"{region[0]} \u2192"
-                ttk.Label(bir_frames[i], text=text, font=font).grid(row=j+1, column=0, sticky=("nesw"))
+                    text = f"{region[0]: <4} \u2192"
+                ttk.Label(bir_frames[i], text=text, font="TkFixedFont").grid(row=j+1, column=0, sticky=("nesw"))
  
                 
         for child in bir_label_frame.winfo_children():
-            child.grid_configure(padx=10, pady=10)
+            child.grid_configure(padx=15, pady=20)
 
-        table_frame = ttk.Frame(window)
+        table_frame = ttk.Frame(window, padding=padding)
         table_frame.grid(row=0, column=1)
         tickboxes = []
         radiobuttons = []
@@ -187,7 +190,7 @@ class settings:
             ttk.Label(table_frame, text=name, font=font).grid(row=i + 1, column=0, sticky=("nes"))
             tick_var = tk.BooleanVar()
             tick_var.set(self.birs_use[name])
-            tick = ttk.Checkbutton(table_frame, variable = tick_var, onvalue=True, offvalue=False)
+            tick = ttk.Checkbutton(table_frame, variable=tick_var, onvalue=True, offvalue=False)
             radio = ttk.Radiobutton(table_frame, variable=bir_default_var, value=name)
             tick.grid(row=i + 1, column=1, sticky=("nesw"))
             radio.grid(row=i + 1, column=2, sticky=("nesw"))
@@ -196,6 +199,7 @@ class settings:
             radiobuttons.append(radio)
         ttk.Separator(table_frame, orient=tk.HORIZONTAL).grid(row=0, column=0, columnspan=3, sticky=("sew"))    
         ttk.Separator(table_frame, orient=tk.VERTICAL).grid(row=1, column=1, rowspan=len(birs), sticky=("nse"))
+
 
         """
         Create buttons for:

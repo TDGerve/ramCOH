@@ -15,7 +15,7 @@ class water_calc(ttk.Frame):
 
         super().__init__(parent, *args, **kwargs)
         self.app = app
-        self.sample = None
+        self.sample_info = None
 
         # Initiate variables
         # Object to store lines to be dragged
@@ -179,7 +179,7 @@ class water_calc(ttk.Frame):
         self.smoothing_var = tk.StringVar()
         self.smoothing_var.set(1)
         smoothing_label = ttk.Label(
-            baseline_frame, text="Smoothing", font=(font, fontsize, "italic")
+            baseline_frame, text="Smoothing", font=(font, fontsize)
         )
         # Validate on changing focus
         self.smoothing_spinbox = ttk.Spinbox(
@@ -195,11 +195,11 @@ class water_calc(ttk.Frame):
             width=5,
             font=(font, fontsize, "italic"),
         )
-        baseline_set = ttk.Button(
-            baseline_frame, text="Set", command=self.set_baseline_smoothing
+        self.baseline_set = ttk.Button(
+            baseline_frame, text="Set", command=self.set_baseline_smoothing, state=tk.DISABLED
         )
         smoothing_label.grid(row=0, column=0, sticky=("w"))
-        baseline_set.grid(row=1, column=0, columnspan=2, sticky=("ew"))
+        self.baseline_set.grid(row=1, column=0, columnspan=2, sticky=("ew"))
         self.smoothing_spinbox.grid(row=0, column=1, sticky=("e"))
         # Leave some space between the frame and the widgets
         for child in baseline_frame.winfo_children():
@@ -274,55 +274,60 @@ class water_calc(ttk.Frame):
     def set_baseline_smoothing(self):
         smoothing = float(self.smoothing_var.get())
         self.app.data_bulk.smooth_factor = smoothing
-        self.recalculate_baseline()
+        self.draw_baseline()
 
     def save_sample(self):
+        """ 
+        """
 
-        self.app.data_bulk.processing.loc[
-            self.sample.index, "Si_bir"
-        ] = self.sample.Si_birs_select
-        self.app.data_bulk.processing.loc[
-            self.sample.index, ["water_left", "water_right"]
-        ] = round(self.sample.H2O_left, -1), round(self.sample.H2O_right, -1)
+        self.sample_info.save_water_settings()
 
-        self.app.data_bulk.results.loc[self.sample.index, ["SiArea", "H2Oarea"]] = (
-            self.sample.Si_area,
-            self.sample.H2O_area,
-        )
-        self.app.data_bulk.results.loc[self.sample.index, "rWS"] = (
-            self.sample.H2O_area / self.sample.Si_area
-        )
+        # self.app.data_bulk.processing.loc[
+        #     self.sample.index, "Si_bir"
+        # ] = self.sample.Si_birs_select
+        # self.app.data_bulk.processing.loc[
+        #     self.sample.index, ["water_left", "water_right"]
+        # ] = round(self.sample.H2O_left, -1), round(self.sample.H2O_right, -1)
+
+        # self.app.data_bulk.results.loc[self.sample.index, ["SiArea", "H2Oarea"]] = (
+        #     self.sample.Si_area,
+        #     self.sample.H2O_area,
+        # )
+        # self.app.data_bulk.results.loc[self.sample.index, "rWS"] = (
+        #     self.sample.H2O_area / self.sample.Si_area
+        # )
 
     def initiate_plot(self):
         """
         Docstring
         """
         # Grab sample
-        self.sample = self.app.current_sample
+        self.sample_info = self.app.current_sample
+        sample = self.sample_info.sample
         # Grab spectrum selecton
-        spectrum_select = self.sample.spectra._spectrumSelect
+        spectrum_select = sample._spectrumSelect
         spectrum_label = spectrum_select.replace("_", " ")
         # Calculate areas and grab baseline interpolation settings
         self.refresh_areas()
         H2O_bir = np.array(
-            [[1500, self.sample.H2O_left], [self.sample.H2O_right, 4000]]
+            [[1500, self.sample_info.H2O_left], [self.sample_info.H2O_right, 4000]]
         )
-        self.bir_var.set(self.sample.Si_birs_select)
-        # Calcumate ymax
+        self.bir_var.set(self.sample_info.Si_birs_select)
+        # Calculate ymax
         y_max_Si = (
             np.max(
-                self.sample.spectra.signal.long_corrected[self.sample.spectra.x < 1400]
+                sample.signal.long_corrected[sample.x < 1400]
             )
             * 1.2
         )
         y_max_h2o = (
             np.max(
-                self.sample.spectra.signal.long_corrected[self.sample.spectra.x > 2500]
+                sample.signal.long_corrected[sample.x > 2500]
             )
             * 1.2
         )
         # Set ymax
-        self.ax1.set_ylim(0, y_max_Si * 1.05)
+        self.ax1.set_ylim(0, y_max_Si)
         self.ax2.set_ylim(0, y_max_h2o)
 
         self.fig.canvas.draw_idle()
@@ -332,31 +337,28 @@ class water_calc(ttk.Frame):
             # Long corrected
             self.raw_spectra.append(
                 ax.plot(
-                    self.sample.spectra.x,
-                    getattr(self.sample.spectra.signal, spectrum_select),
+                    sample.x,
+                    getattr(sample.signal, spectrum_select),
                     color=self.colors[0],
-                    linewidth=1.2,
                     label=spectrum_label,
                 )
             )
             # Baseline
             self.baselines.append(
                 ax.plot(
-                    self.sample.spectra.x,
-                    self.sample.spectra.baseline,
+                    sample.x,
+                    sample.baseline,
                     linestyle="dashed",
                     color=self.colors[2],
-                    linewidth=1.2,
                     label="baseline",
                 )
             )
             # Baseline corrected
             self.corrected.append(
                 ax.plot(
-                    self.sample.spectra.x,
-                    self.sample.spectra.signal.baseline_corrected,
+                    sample.x,
+                    sample.signal.baseline_corrected,
                     color=self.colors[1],
-                    linewidth=1.2,
                     label="baseline corrected",
                 )
             )
@@ -380,7 +382,7 @@ class water_calc(ttk.Frame):
 
         self.legend = self.ax1.legend(loc="upper left", prop={"size": self.app.fontsize/3})
 
-        for polygon in self.Si_bir_polygons[self.sample.Si_birs_select]:
+        for polygon in self.Si_bir_polygons[self.sample_info.Si_birs_select]:
             polygon.set_visible(True)
         # Water region
         self.H2O_bir_polygons = [
@@ -388,7 +390,7 @@ class water_calc(ttk.Frame):
         ]
         self.H2O_bir_lines = [
             self.ax2.axvline(x, color="k", linewidth=1, visible=False)
-            for x in [self.sample.H2O_left, self.sample.H2O_right]
+            for x in [self.sample_info.H2O_left, self.sample_info.H2O_right]
         ]
 
         # Connect mouse events to callback functions
@@ -399,39 +401,39 @@ class water_calc(ttk.Frame):
         self.canvas.draw()
 
         # Activate buttons
-        self.save_button.configure(state=tk.NORMAL)
+        for widget in [self.baseline_set, self.save_button]:
+            widget.configure(state=tk.NORMAL)
         for radio in self.bir_radio_buttons:
             radio.configure(state=tk.NORMAL)
 
-    def activate_legend(self):
-        """ """
+    def toggle_legend(self):
+        """ 
+        CREATE A CHECKBUTTON FOR TOGGLING THE LEGEND SOMEWHERE
+        """
         current_status = self.legend.get_visible()
         self.legend.set(visible=~current_status)
 
-    def update_plot_sample(self):
+    def update_plot(self):
         """
         Docstring
         """
-        self.sample = self.app.current_sample
+        self.sample_info = self.app.current_sample
+        sample = self.sample_info.sample
 
-        spectrum_select = self.sample.spectra._spectrumSelect
+        spectrum_select = sample._spectrumSelect
         spectrum_label = spectrum_select.replace("_", " ")
 
-        # self.H2O_left, self.H2O_right = self.app.data_bulk.processing.loc[
-        #     index, ["water_left", "water_right"]
-        # ]
-        # self.Si_birs_select = self.app.data_bulk.processing.loc[index, "Si_bir"]
-        self.bir_var.set(self.sample.Si_birs_select)
+        self.bir_var.set(self.sample_info.Si_birs_select)
 
         y_max_Si = (
             np.max(
-                self.sample.spectra.signal.long_corrected[self.sample.spectra.x < 1400]
+                sample.signal.long_corrected[sample.x < 1400]
             )
             * 1.2
         )
         y_max_h2o = (
             np.max(
-                self.sample.spectra.signal.long_corrected[self.sample.spectra.x > 2500]
+                sample.signal.long_corrected[sample.x > 2500]
             )
             * 1.2
         )
@@ -442,24 +444,24 @@ class water_calc(ttk.Frame):
         for i, _ in enumerate([self.ax1, self.ax2]):
             # Long corrected
             self.raw_spectra[i][0].set_data(
-                self.sample.spectra.x,
-                getattr(self.sample.spectra.signal, spectrum_select),
+                sample.x,
+                getattr(sample.signal, spectrum_select),
             )
             # Baseline
             self.baselines[i][0].set_data(
-                self.sample.spectra.x, self.sample.spectra.baseline
+                sample.x, sample.baseline
             )
             # Baseline corrected
             self.corrected[i][0].set_data(
-                self.sample.spectra.x, self.sample.spectra.signal.baseline_corrected
+                sample.x, sample.signal.baseline_corrected
             )
 
         self.raw_spectra[0][0].set_label(spectrum_label)
 
-        for line, x in zip(self.H2O_bir_lines, (self.sample.H2O_left, self.sample.H2O_right)):
+        for line, x in zip(self.H2O_bir_lines, (self.sample_info.H2O_left, self.sample_info.H2O_right)):
             line.set_xdata([x, x])
 
-        self.recalculate_baseline()
+        self.draw_baseline()
         self.update_H2O_birs()
         self.update_Si_birs()
         self.refresh_areas()
@@ -470,10 +472,10 @@ class water_calc(ttk.Frame):
         """
 
         polygon_left = np.array(
-            [[1500, 0.0], [1500, 1.0], [self.sample.H2O_left, 1.0], [self.sample.H2O_left, 0.0]]
+            [[1500, 0.0], [1500, 1.0], [self.sample_info.H2O_left, 1.0], [self.sample_info.H2O_left, 0.0]]
         )
         polygon_right = np.array(
-            [[self.sample.H2O_right, 0.0], [self.sample.H2O_right, 1.0], [4000, 1.0], [4000, 0.0]]
+            [[self.sample_info.H2O_right, 0.0], [self.sample_info.H2O_right, 1.0], [4000, 1.0], [4000, 0.0]]
         )
         H2O_polygons_new = [polygon_left, polygon_right]
         for polygon_old, polygon_new in zip(self.H2O_bir_polygons, H2O_polygons_new):
@@ -485,35 +487,28 @@ class water_calc(ttk.Frame):
         """
         Docstring
         """
-        self.sample.Si_birs_select = self.bir_var.get()
+        self.sample_info.Si_birs_select = self.bir_var.get()
 
         for name, birs in self.Si_bir_polygons.items():
-            if name == self.sample.Si_birs_select:
+            if name == self.sample_info.Si_birs_select:
                 [polygon.set_visible(True) for polygon in birs]
             else:
                 [polygon.set_visible(False) for polygon in birs]
 
-        self.recalculate_baseline()
+        self.draw_baseline()
         self.refresh_areas()
         self.fig.canvas.draw_idle()
 
-    def recalculate_baseline(self):
+    def draw_baseline(self):
         """
         Docstring
         """
-        smooth_factor = self.app.data_bulk.smooth_factor
-
-        Si_bir = data_processing.Si_birs[self.sample.Si_birs_select]
-
-        self.sample.spectra.baselineCorrect(
-            Si_birs=Si_bir,
-            H2O_boundaries=[round(self.sample.H2O_left, -1), round(self.sample.H2O_right, -1)],
-            smooth_factor=smooth_factor,
-        )
+        self.sample_info.recalculate_baseline()
+        sample = self.sample_info.sample
         for i, _ in enumerate([self.ax1, self.ax2]):
-            self.baselines[i][0].set_data(self.sample.spectra.x, self.sample.spectra.baseline)
+            self.baselines[i][0].set_data(sample.x, sample.baseline)
             self.corrected[i][0].set_data(
-                self.sample.spectra.x, self.sample.spectra.signal.baseline_corrected
+                sample.x, sample.signal.baseline_corrected
             )
 
         self.refresh_areas()
@@ -524,8 +519,8 @@ class water_calc(ttk.Frame):
         Docstring
         """
 
-        self.sample.recalculate_areas()
-        Si_area, H2O_area = self.sample.spectra.SiH2Oareas
+        self.sample_info.recalculate_areas()
+        Si_area, H2O_area = self.sample_info.sample.SiH2Oareas
         self.Si_var.set(f"{Si_area * 1e2: .3f}")
         self.H2O_var.set(f"{H2O_area * 1e2: .3f}")
         self.H2OSi_var.set(f"{(H2O_area / Si_area): .3f}")
@@ -547,15 +542,15 @@ class water_calc(ttk.Frame):
         if event.button == 1 and event.inaxes in [self.ax2] and self._dragging_line:
             new_x = event.xdata
             self.H2O_bir_lines[self._dragging_line_id] = self._dragging_line
-            self._dragging_line = None
-            self._dragging_line_id = None
             # self._dragging_line.remove()
             id = self._dragging_line_id
             if id == 0:
-                self.sample.H2O_left = round(new_x, -1)
+                self.sample_info.H2O_left = round(new_x, -1)
             elif id == 1:
-                self.sample.H2O_right = round(new_x, -1)
-            self.recalculate_baseline()
+                self.sample_info.H2O_right = round(new_x, -1)
+            self._dragging_line = None
+            self._dragging_line_id = None
+            self.draw_baseline()
             self.update_H2O_birs()
 
     def _on_motion(self, event):
@@ -564,19 +559,19 @@ class water_calc(ttk.Frame):
         """
         if self._dragging_line:
             new_x = event.xdata
-            y = self._dragging_line.get_ydata()
-            self._dragging_line.set_data([new_x, new_x], y)
             # self.fig.canvas.draw_idle()
             id = self._dragging_line_id
             if id == 0:
-                if new_x > self.sample.H2O_right:
-                    new_x = self.sample.H2O_right - 20
-                self.sample.H2O_left = new_x
+                if new_x > self.sample_info.H2O_right:
+                    new_x = self.sample_info.H2O_right - 20
+                self.sample_info.H2O_left = new_x
             elif id == 1:
-                if new_x < self.sample.H2O_left:
-                    new_x = self.sample.H2O_left + 20
-                self.sample.H2O_right = new_x
-            self.recalculate_baseline()
+                if new_x < self.sample_info.H2O_left:
+                    new_x = self.sample_info.H2O_left + 20
+                self.sample_info.H2O_right = new_x
+            y = self._dragging_line.get_ydata()
+            self._dragging_line.set_data([new_x, new_x], y)
+            self.draw_baseline()
             self.update_H2O_birs()
 
     def _find_neighbor_line(self, event):

@@ -1,11 +1,10 @@
 import numpy as np
-from attr import has
 from .baseclass import RamanProcessing
 
 
 class Olivine(RamanProcessing):
     # Baseline regions
-    birs = np.array(
+    birs_default = np.array(
         [
             [100, 185],
             [260, 272],
@@ -20,7 +19,10 @@ class Olivine(RamanProcessing):
 
         super().__init__(x, y)
 
-    def baselineCorrect(self, baseline_regions=birs, smooth_factor=1e-4, **kwargs):
+    def baselineCorrect(self, baseline_regions=None, smooth_factor=1e-4, **kwargs):
+
+        if baseline_regions is None:
+            baseline_regions = self.birs_default
 
         return super().baselineCorrect(
             baseline_regions=baseline_regions, smooth_factor=smooth_factor, **kwargs

@@ -6,7 +6,7 @@ import numpy as np
 
 class CO2(RamanProcessing):
 
-    birs = np.array(
+    birs_default = np.array(
         [[1000, 1260], [1270, 1275], [1300, 1375], [1396, 1402], [1418, 1500]]
     )
 
