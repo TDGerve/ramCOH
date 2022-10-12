@@ -6,7 +6,7 @@ setuptools.setup(
     description= '...',
     author= 'Thomas van Gerve',
     
-    packages= setuptools.find_packages(where="ramCOH"
+    packages= setuptools.find_packages(where=["ramCOH/"]
         ),
 
     # package_dir= {'' : 'petroPy'},
@@ -17,6 +17,6 @@ setuptools.setup(
     'matplotlib',
     'numpy',
     'scipy',
-    'csaps'
+    'csaps',
     ]
 )

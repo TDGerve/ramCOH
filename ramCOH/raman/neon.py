@@ -86,7 +86,7 @@ class neon(RamanProcessing):
 
         for i, j in self.peaks.items():
             peak = j["center"]
-            emissionCheck = np.isclose(peak, neonEmissionTrim, atol=search_window)
+            emissionCheck = np.isclose(peak, neonEmissionTrim, atol=search_window, rtol=0)
 
             if emissionCheck.sum() == 1:
                 self.peakEmission = np.append(

@@ -1,6 +1,5 @@
 from tkinter import DoubleVar, ttk
 import tkinter as tk
-from RangeSlider import RangeSliderH
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import numpy as np
