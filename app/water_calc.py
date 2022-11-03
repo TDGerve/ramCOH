@@ -233,11 +233,11 @@ class water_calc(ttk.Frame):
         self.ax1.set_xlabel(" ")
         self.ax1.set_ylabel("Intensity (arbitr. units)")
         self.ax1.set_yticks([])
-        self.ax1.set_xlim(150, 1400)
+        self.ax1.set_xlim(200, 1400)
 
         self.ax2.set_title("H$_2$O  region")
         self.ax2.set_yticks([])
-        self.ax2.set_xlim(2700, 4000)
+        self.ax2.set_xlim(2400, 4000)
         self.ax2.set_xlabel("Raman shift cm$^{-1}$")
 
         self.fig.patch.set_facecolor(app.bgClr_plt)
@@ -316,13 +316,13 @@ class water_calc(ttk.Frame):
         # Calculate ymax
         y_max_Si = (
             np.max(
-                sample.signal.long_corrected[sample.x < 1400]
+                getattr(sample.signal, spectrum_select)[sample.x < 1400]
             )
             * 1.2
         )
         y_max_h2o = (
             np.max(
-                sample.signal.long_corrected[sample.x > 2500]
+                getattr(sample.signal, spectrum_select)[sample.x > 2500]
             )
             * 1.2
         )
@@ -334,7 +334,7 @@ class water_calc(ttk.Frame):
 
         # Plot spectra
         for ax in (self.ax1, self.ax2):
-            # Long corrected
+            # raw spectrum
             self.raw_spectra.append(
                 ax.plot(
                     sample.x,
@@ -427,13 +427,13 @@ class water_calc(ttk.Frame):
 
         y_max_Si = (
             np.max(
-                sample.signal.long_corrected[sample.x < 1400]
+                getattr(sample.signal, spectrum_select)[sample.x < 1400]
             )
             * 1.2
         )
         y_max_h2o = (
             np.max(
-                sample.signal.long_corrected[sample.x > 2500]
+                getattr(sample.signal, spectrum_select)[sample.x > 2500]
             )
             * 1.2
         )
@@ -442,7 +442,7 @@ class water_calc(ttk.Frame):
         self.ax2.set_ylim(0, y_max_h2o)
 
         for i, _ in enumerate([self.ax1, self.ax2]):
-            # Long corrected
+            # Raw spectrum
             self.raw_spectra[i][0].set_data(
                 sample.x,
                 getattr(sample.signal, spectrum_select),

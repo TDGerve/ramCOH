@@ -74,7 +74,7 @@ class data_processing:
         for i, f in enumerate(self.files):
             x, y = np.genfromtxt(f, unpack=True)
             self.samples[i] = self.model(x, y, laser=laser)
-            self.samples[i].longCorrect()
+            # self.samples[i].longCorrect()
             self.samples[i].baselineCorrect(smooth_factor=self.smooth_factor)
             self.samples[i].calculate_SiH2Oareas()
             Si_area, H2O_area = self.samples[i].SiH2Oareas
@@ -97,7 +97,7 @@ class data_processing:
         # Load and processes spectrum
         x, y = np.genfromtxt(file, unpack=True)
         self.samples[index] = self.model(x, y, laser=laser)
-        self.samples[index].longCorrect()
+        # self.samples[index].longCorrect()
         self.samples[index].baselineCorrect(smooth_factor=1)
         self.samples[index].calculate_SiH2Oareas()
         # Calculate areas

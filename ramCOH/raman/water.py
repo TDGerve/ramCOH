@@ -16,7 +16,7 @@ from .olivine import Olivine
 
 class H2O(RamanProcessing):
     # Baseline regions
-    Si_birs_default = np.array([[20, 250], [640, 655], [800, 810], [1220, 1600]])
+    Si_birs_default = np.array([[200, 300], [640, 655], [800, 810], [1220, 1600]])
     H2O_boundaries_default = [2800, 3850]
     H2O_birs_default = np.array(
         [[1500, H2O_boundaries_default[0]], [H2O_boundaries_default[1], 4000]]
@@ -58,7 +58,7 @@ class H2O(RamanProcessing):
         baseline_regions = np.concatenate((Si_birs, H2O_birs))
 
         return super().baselineCorrect(
-            y="long_corrected", baseline_regions=baseline_regions, **kwargs
+            baseline_regions=baseline_regions, **kwargs
         )
 
     def interpolate(self, *, interpolate=[780, 900], smooth_factor=1, **kwargs):

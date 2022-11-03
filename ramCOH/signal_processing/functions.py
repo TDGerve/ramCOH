@@ -31,7 +31,7 @@ def neonEmission(laser=532.18):
     return neon
 
 
-def trim_sort(x, y, cutoff=100):
+def trim_sort(x, y, cutoff=200):
     """
     Sort and trim x, y data
 
