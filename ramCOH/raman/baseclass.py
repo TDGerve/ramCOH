@@ -1,26 +1,48 @@
+from typing import List
 import numpy as np
 from warnings import warn
 from scipy import signal
 import scipy.optimize as opt
 from csaps import csaps
+
 from ..signal_processing import curves as c
 from ..signal_processing import curve_fitting as cf
 from ..signal_processing import deconvolution as d
 from ..signal_processing import functions as f
 
 
-
-
-
-class signal:
-    def __init__(self, y):
+class Signal:
+    def __init__(self, x, y):
+        self.x = x
         self.raw = y
+        self._names: List[str] = ["raw"]
+
+    def add(self, name, values: np.ndarray):
+        setattr(self, name, values)
+        self._names.append(name)
+
+    def set(self, name, values):
+        if name not in self.names:
+            raise ValueError(f"{name} not in signals")
+        setattr(self, name, values)
+
+    def get(self, name):
+        return getattr(self, name)
+
+    @property
+    def all(self):
+        return {name: getattr(self, name) for name in self.names}
+
+    @property
+    def names(self):
+        return self._names
 
 
 class RamanProcessing:
     def __init__(self, x, y, laser=532.18):
-        self.x = f.trim_sort(x, y)[0]
-        self.signal = signal(f.trim_sort(x, y)[1])
+        x, y = f.trim_sort(x, y)
+        self.x = x
+        self.signal = Signal(x, y)
         self.laser = laser
         self._processing = {
             "baseline_corrected": False,
@@ -33,7 +55,6 @@ class RamanProcessing:
     def processing(self):
         return self._processing
 
-
     def smooth(self, smoothType="Gaussian", kernelWidth=9, **kwargs):
         """
         Smoothing by either a moving average or with a Gaussian kernel.
@@ -41,18 +62,18 @@ class RamanProcessing:
         """
 
         y = kwargs.get("y", self._spectrumSelect)
-        spectrum = getattr(self.signal, y)
+        spectrum = self.signal.get(y)
 
         smooth = f.smooth(spectrum, smoothType, kernelWidth)
-        setattr(self.signal, "smooth", smooth)
+        self.signal.add("smooth", smooth)
 
         # match length of x with length of smoothed signal
         self.x = self.x[(kernelWidth - 1) // 2 : -(kernelWidth - 1) // 2]
         # do the same for any other pre-existing spectra
-        for name, value in vars(self.signal).items():
+        for name, value in self.signal.all.items():
             if name != "smooth":
                 shortened = value[(kernelWidth - 1) // 2 : -(kernelWidth - 1) // 2]
-                setattr(self.signal, name, shortened)
+                self.signal.set(name, shortened)
 
         self._processing["smoothed"] = True
         self._spectrumSelect = "smooth"
@@ -65,14 +86,14 @@ class RamanProcessing:
         smooth: smoothing factor in range [0,1]
         """
         y = kwargs.get("y", self._spectrumSelect)
-        spectrum = getattr(self.signal, y)
+        spectrum = self.signal.get(y)
 
         if (hasattr(self, "birs_default")) & (baseline_regions is None):
             baseline_regions = self.birs_default
-        
+
         self.birs = baseline_regions
 
-        if (hasattr(self.signal, "normalised")):
+        if "normalised" in self.signal.names:
             warn("run normalisation again to normalise baseline corrected spectrum")
 
         xbir, ybir = f._extractBIR(self.x, spectrum, baseline_regions)
@@ -83,14 +104,13 @@ class RamanProcessing:
         spline = csaps(xbir, ybir, smooth=smooth)
         self.baseline = spline(self.x)
         baseline_corrected = spectrum - self.baseline
-        setattr(self.signal, "baseline_corrected", baseline_corrected)
+        self.signal.add("baseline_corrected", baseline_corrected)
 
         self._processing["baseline_corrected"] = True
 
-
     def calculate_noise(self, baseline_regions=None):
 
-        if not hasattr(self.signal, "baseline_corrected"):
+        if "baseline_corrected" not in self.signal.names:
             raise RuntimeError("Run baseline correction first")
 
         if (hasattr(self, "birs")) & (baseline_regions is None):
@@ -115,7 +135,7 @@ class RamanProcessing:
     def fitPeaks(self, peak_prominence=3, fit_window=12, curve="GL", **kwargs):
 
         y = kwargs.get("y", self._spectrumSelect)
-        spectrum = getattr(self.signal, y)
+        spectrum = self.signal.get(y)
         self.peaks = {}
         self.curve = curve
         curveDict = {"GL": c.GaussLorentz, "G": c.Gaussian, "L": c.Lorentzian}
@@ -181,7 +201,7 @@ class RamanProcessing:
     ):
 
         y = kwargs.get("y", self._spectrumSelect)
-        spectrum = getattr(self.signal, y)
+        spectrum = self.signal.get(y)
         x = self.x
 
         if "cutoff" in kwargs:

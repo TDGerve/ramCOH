@@ -41,25 +41,27 @@ class H2O(RamanProcessing):
         laser = kwargs.get("laser", self.laser)
 
         y = kwargs.get("y", self._spectrumSelect)
-        spectrum = getattr(self.signal, y)
+        spectrum = self.signal.get(y)
 
         long_corrected = f.long_correction(self.x, spectrum, T_C, laser, normalisation)
-        setattr(self.signal, "long_corrected", long_corrected)
+        self.signal.add("long_corrected", long_corrected)
         # self.LC = 1
         self._spectrumSelect = "long_corrected"
         self._processing["long_corrected"] = True
 
     def baselineCorrect(self, **kwargs):
 
-        _ = kwargs.pop("baseline_regions", None)
-        Si_birs = kwargs.get("Si_birs", self.Si_birs)
-        H2O_boundaries = kwargs.get("H2O_boundaries", self.H2O_boundaries)
-        H2O_birs = np.array([[1500, min(H2O_boundaries)], [max(H2O_boundaries), 4000]])
-        baseline_regions = np.concatenate((Si_birs, H2O_birs))
+        if "baseline_regions" in kwargs.keys():
+            baseline_regions = kwargs.pop("baseline_regions", None)
+        else:
+            Si_birs = kwargs.get("Si_birs", self.Si_birs)
+            H2O_boundaries = kwargs.get("H2O_boundaries", self.H2O_boundaries)
+            H2O_birs = np.array(
+                [[1500, min(H2O_boundaries)], [max(H2O_boundaries), 4000]]
+            )
+            baseline_regions = np.concatenate((Si_birs, H2O_birs))
 
-        return super().baselineCorrect(
-            baseline_regions=baseline_regions, **kwargs
-        )
+        return super().baselineCorrect(baseline_regions=baseline_regions, **kwargs)
 
     def interpolate(self, *, interpolate=[780, 900], smooth_factor=1, **kwargs):
 
@@ -67,7 +69,7 @@ class H2O(RamanProcessing):
             [[self.x.min(), min(interpolate)], [max(interpolate), self.x.max()]]
         )
 
-        spectrum = getattr(self.signal, "raw")
+        spectrum = self.signal.get("raw")
         smooth = smooth_factor * 1e-5
         use = kwargs.get("use", True)
 
@@ -95,7 +97,7 @@ class H2O(RamanProcessing):
         noise_spline = self.spectrum_spline + np.random.normal(0, noise, len(self.x))
 
         # only replace interpolated parts of the spectrum
-        setattr(self.signal, "interpolated", spectrum.copy())
+        self.signal.add("interpolated", spectrum.copy())
         self.signal.interpolated[interpolate_index] = noise_spline[interpolate_index]
 
         # Area of interpolated regions
@@ -109,7 +111,7 @@ class H2O(RamanProcessing):
 
     def _interpolate_olivine_peaks(self, olivine_free_regions, smooth=1e-6, **kwargs):
 
-        spectrum = getattr(self.signal, "raw")
+        spectrum = self.signal.get("raw")
 
         xbir, ybir = f._extractBIR(self.x, spectrum, olivine_free_regions)
 
@@ -119,7 +121,9 @@ class H2O(RamanProcessing):
         return spline
 
     @staticmethod
-    def _root_olivine_interference(scaling, x, x_range, olivine, glass, glass_interpolated):
+    def _root_olivine_interference(
+        scaling, x, x_range, olivine, glass, glass_interpolated
+    ):
 
         scale, shift = scaling
         x_min, x_max = x_range
@@ -127,9 +131,7 @@ class H2O(RamanProcessing):
         glass = glass[(x > x_min) & (x < x_max)]
         glass_interpolated = glass_interpolated[(x > x_min) & (x < x_max)]
         # Trim and scale olivine spectrum
-        olivine_scaled = (
-            olivine[(x > (x_min + shift)) & (x < (x_max + shift))] * scale
-        )
+        olivine_scaled = olivine[(x > (x_min + shift)) & (x < (x_max + shift))] * scale
         # Subtract olivine
         glass_corrected = glass - olivine_scaled
 
@@ -148,15 +150,25 @@ class H2O(RamanProcessing):
         x = self.x[x_range]
 
         glass_spectrum = getattr(self.signal, "raw")[x_range]
-        glass_spline = self._interpolate_olivine_peaks(olivine_free_regions=olivine.birs)[x_range]
+        glass_spline = self._interpolate_olivine_peaks(
+            olivine_free_regions=olivine.birs
+        )[x_range]
 
-        olivine_interpolation_model = itp.interp1d(olivine.x, olivine.signal.baseline_corrected)
+        olivine_interpolation_model = itp.interp1d(
+            olivine.x, olivine.signal.baseline_corrected
+        )
         olivine_y = olivine_interpolation_model(x)
 
         olivine_scaling = opt.root(
             self._root_olivine_interference,
             x0=[0.2, 0],
-            args=(x, [boundary_left, boundary_right], olivine_y, glass_spectrum, glass_spline),
+            args=(
+                x,
+                [boundary_left, boundary_right],
+                olivine_y,
+                glass_spectrum,
+                glass_spline,
+            ),
         ).x
 
         scale, shift = olivine_scaling
@@ -171,8 +183,6 @@ class H2O(RamanProcessing):
         #     self._processing["olivine_corrected"] = True
         # else:
         return olivine_x, olivine_y, glass_corrected, glass_spline
-
-
 
     def extract_olivine(
         self, olivine_x, olivine_y, *, peak_prominence=10, smooth=1e-6, **kwargs
@@ -190,7 +200,7 @@ class H2O(RamanProcessing):
         cutoff_low = 700
 
         y = kwargs.get("y", self._spectrumSelect)
-        spectrum = getattr(self.signal, y)
+        spectrum = self.signal.get(y)
 
         xbir, ybir = f._extractBIR(self.x, spectrum, birs)
 
@@ -252,7 +262,7 @@ class H2O(RamanProcessing):
         self.olivine = c.sum_GaussLorentz(self.x, *olivine.deconvolution_parameters)
 
         olivine_corrected = spectrum - (self.olivine / self.olivine_scale)
-        setattr(self.signal, "olivine_corrected", olivine_corrected)
+        self.signaladd("olivine_corrected", olivine_corrected)
         self._spectrumSelect = "olivine_corrected"
         self._processing["olivine_corrected"] = True
 
@@ -263,13 +273,13 @@ class H2O(RamanProcessing):
 
     def calculate_SiH2Oareas(self, **kwargs):
 
-        if not hasattr(self.signal, "baseline_corrected"):
+        if "baseline_corrected" not in self.signal.names:
             raise RuntimeError("run baseline correction first")
 
         water_left = self.birs[-2][1]
         water_right = self.birs[-1][0]
 
-        spectrum = getattr(self.signal, "baseline_corrected")
+        spectrum = self.signal.get("baseline_corrected")
         SiArea = np.trapz(
             spectrum[(self.x > 150) & (self.x < 1400)],
             self.x[(self.x > 150) & (self.x < 1400)],
