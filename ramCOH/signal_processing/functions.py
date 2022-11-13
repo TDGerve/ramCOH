@@ -18,8 +18,6 @@ def ShiftToWavelength(shift, laser=532.18):
 def neonEmission(laser=532.18):
     "from https://physics.nist.gov/PhysRefData/Handbook/Tables/neontable2.htm"
 
- 
-
     with resources.open_text("ramCOH.static", "neon_emissionLines.csv") as df:
         neon = pd.read_csv(df)
 
@@ -31,7 +29,7 @@ def neonEmission(laser=532.18):
     return neon
 
 
-def trim_sort(x, y, cutoff=200):
+def trim_sort(x, y, cutoff=0):
     """
     Sort and trim x, y data
 
@@ -121,7 +119,7 @@ def long_correction(x, intensities, T_C=25.0, laser=532.18, normalisation=True):
     nu = 100.0 * x
 
     # frequency correction; dimensionless
-    frequency = nu0 ** 3 * nu / ((nu0 - nu) ** 4)
+    frequency = nu0**3 * nu / ((nu0 - nu) ** 4)
     # temperature correction with Boltzman distribution; dimensionless
     boltzman = 1.0 - np.exp(-h * c * nu / (k * T))
     intensityLong = intensities * frequency * boltzman  # correction

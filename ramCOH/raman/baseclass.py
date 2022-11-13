@@ -105,6 +105,7 @@ class RamanProcessing:
         self.baseline = spline(self.x)
         baseline_corrected = spectrum - self.baseline
         self.signal.add("baseline_corrected", baseline_corrected)
+        self.signal.add("baseline", self.baseline)
 
         self._processing["baseline_corrected"] = True
 
