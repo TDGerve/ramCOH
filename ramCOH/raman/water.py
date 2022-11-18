@@ -1,4 +1,3 @@
-from email.mime import base
 import numpy as np
 import csaps as cs
 import scipy.optimize as opt
@@ -16,12 +15,9 @@ from .olivine import Olivine
 
 class H2O(RamanProcessing):
     # Baseline regions
-    Si_birs_default = np.array([[200, 300], [640, 655], [800, 810], [1220, 1600]])
-    H2O_boundaries_default = [2800, 3850]
-    H2O_birs_default = np.array(
-        [[1500, H2O_boundaries_default[0]], [H2O_boundaries_default[1], 4000]]
+    birs_default = np.array(
+        [[200, 300], [640, 655], [800, 810], [1220, 2300], [3750, 4000]]
     )
-    birs_default = np.concatenate((Si_birs_default, H2O_birs_default))
 
     def __init__(self, x, y, **kwargs):
 
@@ -29,12 +25,6 @@ class H2O(RamanProcessing):
         self._processing.update(
             {"long_corrected": False, "interpolated": False, "olivine_corrected": False}
         )
-        self.Si_birs = kwargs.get("Si_birs", self.Si_birs_default)
-        self.H2O_boundaries = kwargs.get("H2O_boundaries", self.H2O_boundaries_default)
-        H2O_birs = np.array(
-            [[1500, min(self.H2O_boundaries)], [max(self.H2O_boundaries), 4000]]
-        )
-        self.birs = np.concatenate((self.Si_birs, H2O_birs))
 
     def longCorrect(self, T_C=23.0, normalisation="area", **kwargs):
 
@@ -49,17 +39,13 @@ class H2O(RamanProcessing):
         self._spectrumSelect = "long_corrected"
         self._processing["long_corrected"] = True
 
-    def baselineCorrect(self, **kwargs):
+    def baselineCorrect(self, baseline_regions=None, **kwargs):
 
-        if "baseline_regions" in kwargs.keys():
-            baseline_regions = kwargs.pop("baseline_regions", None)
+        if baseline_regions is not None:
+            self.birs = baseline_regions
         else:
-            Si_birs = kwargs.get("Si_birs", self.Si_birs)
-            H2O_boundaries = kwargs.get("H2O_boundaries", self.H2O_boundaries)
-            H2O_birs = np.array(
-                [[1500, min(H2O_boundaries)], [max(H2O_boundaries), 4000]]
-            )
-            baseline_regions = np.concatenate((Si_birs, H2O_birs))
+            self.birs = self.birs_default.copy()
+            baseline_regions = self.birs_default
 
         return super().baselineCorrect(baseline_regions=baseline_regions, **kwargs)
 
@@ -276,16 +262,18 @@ class H2O(RamanProcessing):
         if "baseline_corrected" not in self.signal.names:
             raise RuntimeError("run baseline correction first")
 
-        water_left = self.birs[-2][1]
-        water_right = self.birs[-1][0]
+        Si_left = max(self.birs[0])
+        Si_right = min(self.birs[-2])
+        Si_range = (self.x > Si_left) & (self.x < Si_right)
+
+        water_left = max(self.birs[-2])
+        water_right = min(self.birs[-1])
+        water_range = (self.x > water_left) & (self.x < water_right)
 
         spectrum = self.signal.get("baseline_corrected")
-        SiArea = np.trapz(
-            spectrum[(self.x > 150) & (self.x < 1400)],
-            self.x[(self.x > 150) & (self.x < 1400)],
-        )
-        H2Oarea = np.trapz(
-            spectrum[(self.x > water_left) & (self.x < water_right)],
-            self.x[(self.x > water_left) & (self.x < water_right)],
-        )
+        SiArea = np.trapz(spectrum[Si_range], self.x[Si_range])
+        H2Oarea = np.trapz(spectrum[water_range], self.x[water_range])
+
         self.SiH2Oareas = SiArea, H2Oarea
+
+        return self.SiH2Oareas
