@@ -49,6 +49,7 @@ class RamanProcessing:
             "normalised": False,
             "smoothed": False,
         }
+        self.birs = None
         self._spectrumSelect = "raw"
 
     @property

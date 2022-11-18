@@ -39,16 +39,6 @@ class H2O(RamanProcessing):
         self._spectrumSelect = "long_corrected"
         self._processing["long_corrected"] = True
 
-    def baselineCorrect(self, baseline_regions=None, **kwargs):
-
-        if baseline_regions is not None:
-            self.birs = baseline_regions
-        else:
-            self.birs = self.birs_default.copy()
-            baseline_regions = self.birs_default
-
-        return super().baselineCorrect(baseline_regions=baseline_regions, **kwargs)
-
     def interpolate(self, *, interpolate=[780, 900], smooth_factor=1, **kwargs):
 
         birs = np.array(
