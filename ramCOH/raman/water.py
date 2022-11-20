@@ -39,36 +39,45 @@ class H2O(RamanProcessing):
         self._spectrumSelect = "long_corrected"
         self._processing["long_corrected"] = True
 
-    def interpolate(self, *, interpolate=[780, 900], smooth_factor=1, **kwargs):
+    def interpolate(self, *, interpolate=[[780, 900]], smooth_factor=1, **kwargs):
 
-        birs = np.array(
-            [[self.x.min(), min(interpolate)], [max(interpolate), self.x.max()]]
-        )
+        # birs = np.array(
+        #     [[self.x.min(), min(interpolate)], [max(interpolate), self.x.max()]]
+        # )
+        spectrum_index = None
+        for region in enumerate(interpolate):
+            if not spectrum_index:
+                spectrum_index = region[1] < self.x < region[0]
+            else:
+                spectrum_index = spectrum_index | (region[1] < self.x < region[0])
 
         spectrum = self.signal.get("raw")
         smooth = smooth_factor * 1e-5
         use = kwargs.get("use", True)
 
-        xbir, ybir = f._extractBIR(self.x, spectrum, birs)
-
-        # Boolean array for glass only regions; no interference peaks
-        for i, region in enumerate(birs):
-            if i == 0:
-                glassIndex = (self.x > region[0]) & (self.x < region[1])
-            else:
-                glassIndex = glassIndex | ((self.x > region[0]) & (self.x < region[1]))
+        # # Boolean array for glass only regions; no interference peaks
+        # for i, region in enumerate(birs):
+        #     if i == 0:
+        #         glassIndex = (self.x > region[0]) & (self.x < region[1])
+        #     else:
+        #         glassIndex = glassIndex | ((self.x > region[0]) & (self.x < region[1]))
         # regions with interference peaks
-        interpolate_index = ~glassIndex
+        interpolate_index = ~spectrum_index
+
+        xbir = self.x[spectrum_index]
+        ybir = spectrum[spectrum_index]
 
         spline = cs.csaps(xbir, ybir, smooth=smooth)
         self.spectrum_spline = spline(self.x)
         # Interpolated residual
-        self.interpolation_residuals = spectrum - self.spectrum_spline
-
-        _, baseline = f._extractBIR(
-            self.x[self.x > 350], self.interpolation_residuals[self.x > 350], birs
+        noise = (spectrum[spectrum_index] - self.spectrum_spline[spectrum_index]).std(
+            axis=None
         )
-        noise = baseline.std(axis=None)
+
+        # _, baseline = f._extractBIR(
+        #     self.x[self.x > 350], self.interpolation_residuals[self.x > 350], birs
+        # )
+        # noise = baseline.std(axis=None)
         # Add signal noise to the spline
         noise_spline = self.spectrum_spline + np.random.normal(0, noise, len(self.x))
 
@@ -77,9 +86,9 @@ class H2O(RamanProcessing):
         self.signal.interpolated[interpolate_index] = noise_spline[interpolate_index]
 
         # Area of interpolated regions
-        self.interpolated_area = np.trapz(
-            self.interpolation_residuals[interpolate_index], self.x[interpolate_index]
-        )
+        # self.interpolated_area = np.trapz(
+        #     self.interpolation_residuals[interpolate_index], self.x[interpolate_index]
+        # )
 
         if use:
             self._spectrumSelect = "interpolated"
