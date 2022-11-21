@@ -39,6 +39,23 @@ class H2O(RamanProcessing):
         self._spectrumSelect = "long_corrected"
         self._processing["long_corrected"] = True
 
+    def calculate_SNR(self):
+
+        if self.noise is None:
+            self.calculate_noise()
+
+        Si_left = max(self.birs[0])
+        Si_right = min(self.birs[-2])
+        Si_range = (self.x > Si_left) & (self.x < Si_right)
+
+        water_left = max(self.birs[-2])
+        water_right = min(self.birs[-1])
+        water_range = (self.x > water_left) & (self.x < water_right)
+
+        self.Si_SNR = max(self.signal.baseline_corrected[Si_range]) / self.noise
+        self.H2O_SNR = max(self.signal.baseline_corrected[water_range]) / self.noise
+
+
     def interpolate(self, *, interpolate=[[780, 900]], smooth_factor=1, **kwargs):
 
         # birs = np.array(

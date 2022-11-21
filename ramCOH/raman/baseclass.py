@@ -1,7 +1,6 @@
-from typing import List
+from typing import List, Optional
 import numpy as np
 from warnings import warn
-from scipy import signal
 import scipy.optimize as opt
 from csaps import csaps
 
@@ -16,6 +15,7 @@ class Signal:
         self.x = x
         self.raw = y
         self._names: List[str] = ["raw"]
+        
 
     def add(self, name, values: np.ndarray):
         setattr(self, name, values)
@@ -43,6 +43,7 @@ class RamanProcessing:
         x, y = f.trim_sort(x, y)
         self.x = x
         self.signal = Signal(x, y)
+        self.noise: Optional[float] = None
         self.laser = laser
         self._processing = {
             "baseline_corrected": False,
@@ -118,10 +119,14 @@ class RamanProcessing:
         if (hasattr(self, "birs")) & (baseline_regions is None):
             baseline_regions = self.birs
 
+            
+
         _, ybir = f._extractBIR(
             self.x, self.signal.baseline_corrected, baseline_regions
         )
-        self.noise = ybir.std(axis=None)
+
+        self.noise = ybir.std(axis=None) * 2
+
 
     def normalise(self, **kwargs):
 
