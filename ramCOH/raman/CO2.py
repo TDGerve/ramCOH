@@ -19,7 +19,7 @@ class CO2(RamanProcessing):
         # fit parameters for diad
         self.diad["fit_params1"], self.diad["fit_params2"] = cf.diad(
             x=self.x,
-            intensities=spectrum,
+            y=spectrum,
             peak_prominence=peak_prominence,
             fit_window=fit_window,
         )
