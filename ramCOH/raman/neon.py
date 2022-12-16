@@ -94,34 +94,33 @@ class neon(RamanProcessing):
                 )
                 self.peakMeasured = np.append(self.peakMeasured, peak)
             elif emissionCheck.sum() > 1:
-                print(
-                    "multiple emission line fits foundfor peak: "
-                    + str(round(peak, 2))
-                    + " cm-1"
+                raise RuntimeError(
+                    f"multiple emission line fits found at {peak: .2f} cm$^{-1}$"
                 )
 
         # find correction factor for the calibration lines
-        if np.isin([left, right], np.round(self.peakEmission, 2)).sum() == 2:
-            # boolean array for the location of left and right calibration lines
-            calibration_lines = np.array(
-                np.isclose(left, self.peakEmission, atol=0.001)
-                + np.isclose(right, self.peakEmission, atol=0.001)
-            )
-            # boolean to index
-            calibration_lines = list(
-                it.compress(range(len(calibration_lines)), calibration_lines)
-            )
-            # indices for differenced array
-            calibration_lines = np.unique(calibration_lines - np.array([0, 1]))
+        if not np.isin([left, right], np.round(self.peakEmission, 2)).sum() == 2:
+            raise RuntimeError("calibration lines not found in spectrum")
 
-            self.correctionFactor = np.float(
-                np.sum(np.diff(self.peakEmission)[calibration_lines])
-                / np.sum(np.diff(self.peakMeasured)[calibration_lines])
-            )
-            self.offset = np.float(
-                self.peakMeasured[np.isclose(left, self.peakMeasured, atol=10)]
-                - self.peakEmission[np.isclose(left, self.peakEmission, atol=0.1)]
+        # boolean array for the location of left and right calibration lines
+        calibration_lines = np.array(
+            np.isclose(left, self.peakEmission, atol=0.001)
+            + np.isclose(right, self.peakEmission, atol=0.001)
+        )
+        # boolean to index
+        calibration_lines = list(
+            it.compress(range(len(calibration_lines)), calibration_lines)
+        )
+        # indices for differenced array
+        calibration_lines = np.unique(calibration_lines - np.array([0, 1]))
+
+        self.correctionFactor = np.float(
+            np.sum(np.diff(self.peakEmission)[calibration_lines])
+            / np.sum(np.diff(self.peakMeasured)[calibration_lines])
+        )
+        self.offset = np.float(
+            self.peakMeasured[np.isclose(left, self.peakMeasured, atol=10)]
+            - self.peakEmission[np.isclose(left, self.peakEmission, atol=0.1)]
             )
 
-        else:
-            print("calibration lines not found in spectrum")
+
