@@ -78,7 +78,7 @@ class H2O(RamanProcessing):
         #         glassIndex = (self.x > region[0]) & (self.x < region[1])
         #     else:
         #         glassIndex = glassIndex | ((self.x > region[0]) & (self.x < region[1]))
-        # regions with interference peaks
+        #array with interference peaks
         interpolate_index = ~spectrum_index
 
         xbir = self.x[spectrum_index]
