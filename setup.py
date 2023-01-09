@@ -6,7 +6,7 @@ setuptools.setup(
     description= '...',
     author= 'Thomas van Gerve',
     
-    packages= setuptools.find_packages(where=["ramCOH/"]
+    packages= setuptools.find_packages(where=["src/"]
         ),
 
     # package_dir= {'' : 'petroPy'},
