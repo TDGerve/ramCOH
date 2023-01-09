@@ -1,7 +1,7 @@
 import setuptools
 
 setuptools.setup(
-    name= 'ramCO2',
+    name= 'ramCOH',
     version= '0.1',
     description= '...',
     author= 'Thomas van Gerve',
