@@ -1,11 +1,10 @@
-from attr import has
-from . import water as h
 import numpy as np
+from .baseclass import RamanProcessing
 
 
-class olivine(h.H2O):
+class Olivine(RamanProcessing):
     # Baseline regions
-    birs = np.array(
+    birs_default = np.array(
         [
             [100, 185],
             [260, 272],
@@ -16,12 +15,22 @@ class olivine(h.H2O):
         ]
     )
 
-    def __init__(self, x, intensity):
+    def __init__(self, x, y):
 
-        super().__init__(x, intensity)
+        super().__init__(x, y)
+
+    def baselineCorrect(self, baseline_regions=None, smooth_factor=1e-4, **kwargs):
+
+        if baseline_regions is None:
+            baseline_regions = self.birs_default
+
+        return super().baselineCorrect(
+            baseline_regions=baseline_regions, smooth_factor=smooth_factor, **kwargs
+        )
 
     def deconvolve(
         self,
+        *,
         peak_prominence=4,
         noise_threshold=1.6,
         threshold_scale=0.2,
@@ -32,8 +41,13 @@ class olivine(h.H2O):
         cutoff=1400,
         **kwargs,
     ):
-        if hasattr(self, "noise"):
+
+        if "noise" in kwargs:
+            noise = kwargs.pop("noise")
+        elif hasattr(self, "noise"):
             noise = self.noise
+        else:
+            noise = None
 
         super().deconvolve(
             min_peak_width=min_peak_width,
@@ -42,6 +56,7 @@ class olivine(h.H2O):
             threshold_scale=threshold_scale,
             min_amplitude=min_amplitude,
             fit_window=fit_window,
+            noise=noise,
             max_iterations=max_iterations,
             cutoff=cutoff,
             **kwargs,

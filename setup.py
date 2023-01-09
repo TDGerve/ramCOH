@@ -1,13 +1,12 @@
 import setuptools
 
 setuptools.setup(
-    name= 'ramCOH',
+    name= 'ramCO2',
     version= '0.1',
     description= '...',
     author= 'Thomas van Gerve',
     
-    packages= setuptools.find_packages(
-        exclude= ['examples']
+    packages= setuptools.find_packages(where=["ramCOH/"]
         ),
 
     # package_dir= {'' : 'petroPy'},
@@ -18,6 +17,6 @@ setuptools.setup(
     'matplotlib',
     'numpy',
     'scipy',
-    'csaps'
+    'csaps',
     ]
 )
