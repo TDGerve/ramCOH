@@ -1,11 +1,12 @@
 from typing import List, Optional
-import numpy as np
 from warnings import warn
-import scipy.optimize as opt
-from csaps import csaps
 
-from ..signal_processing import curves as c
+import csaps as cs
+import numpy as np
+import scipy.optimize as opt
+
 from ..signal_processing import curve_fitting as cf
+from ..signal_processing import curves as c
 from ..signal_processing import deconvolution as d
 from ..signal_processing import functions as f
 
@@ -49,6 +50,9 @@ class RamanProcessing:
             "baseline_corrected": False,
             "normalised": False,
             "smoothed": False,
+            "interpolated": False,
+            "interference_corrected": False,
+            
         }
         self.birs = None
         self._spectrumSelect = "raw"
@@ -56,6 +60,7 @@ class RamanProcessing:
     @property
     def processing(self):
         return self._processing
+
 
     def smooth(self, smoothType="Gaussian", kernelWidth=9, **kwargs):
         """
@@ -103,7 +108,7 @@ class RamanProcessing:
         # max_difference = abs(ybir.max() - ybir.min())
         smooth = 1e-6 * smooth_factor
 
-        spline = csaps(xbir, ybir, smooth=smooth)
+        spline = cs.csaps(xbir, ybir, smooth=smooth)
         self.baseline = spline(self.x)
         baseline_corrected = spectrum - self.baseline
         self.signal.add("baseline_corrected", baseline_corrected)
@@ -138,6 +143,49 @@ class RamanProcessing:
         setattr(self.signal, "normalised", normalised)
         self._processing["normalised"] = True
         self._spectrumSelect = "normalised"
+
+    def interpolate(self, *args, interpolate=[[780, 900]], smooth_factor=1, **kwargs):        
+
+
+        interference_corrected = self._processing.get("interference_corrected", False)
+        if interference_corrected:
+            spectrum = self.signal.get("interference_corrected")
+        else:
+            spectrum = self.signal.get("raw")
+
+        smooth = smooth_factor * 1e-5
+        use = kwargs.get("use", True)
+
+        spectrum_index = None
+        for region in enumerate(interpolate):
+            if not spectrum_index:
+                spectrum_index = region[1] < self.x < region[0]
+            else:
+                spectrum_index = spectrum_index | (region[1] < self.x < region[0])
+    
+
+        interpolate_index = ~spectrum_index
+
+        xbir = self.x[spectrum_index]
+        ybir = spectrum[spectrum_index]
+
+        spline = cs.csaps(xbir, ybir, smooth=smooth)
+        self.spectrum_spline = spline(self.x)
+        # Interpolated residual
+        noise = (spectrum[spectrum_index] - self.spectrum_spline[spectrum_index]).std(
+            axis=None
+        ) * 2
+
+        # Add signal noise to the spline
+        noise_spline = self.spectrum_spline + np.random.normal(0, noise, len(self.x))
+
+        # only replace interpolated parts of the spectrum
+        self.signal.add("interpolated", spectrum.copy())
+        self.signal.interpolated[interpolate_index] = noise_spline[interpolate_index]
+
+        if use:
+            self._spectrumSelect = "interpolated"
+            self._processing["interpolated"] = True
 
     def fitPeaks(self, peak_prominence=3, fit_window=12, curve="GL", **kwargs):
 

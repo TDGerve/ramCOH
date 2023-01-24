@@ -1,14 +1,14 @@
-import numpy as np
-import csaps as cs
-import scipy.optimize as opt
-import scipy.interpolate as itp
 from warnings import warn
 
+import csaps as cs
+import numpy as np
+import scipy.interpolate as itp
+import scipy.optimize as opt
 
-from ..signal_processing import functions as f
 from ..signal_processing import curve_fitting as cf
 from ..signal_processing import curves as c
 from ..signal_processing import deconvolution as d
+from ..signal_processing import functions as f
 from .baseclass import RamanProcessing
 from .olivine import Olivine
 
@@ -23,8 +23,14 @@ class H2O(RamanProcessing):
 
         super().__init__(x, y, **kwargs)
         self._processing.update(
-            {"long_corrected": False, "interpolated": False, "olivine_corrected": False}
+            {"long_corrected": False}
         )
+
+    def add_olivine_host(self, olivine_x, olivine_y):
+        interpolate = itp.interp1d(olivine_x, olivine_y, bounds_error=False, fill_value=np.nan)
+        y_interpolate = interpolate(self.signal.x)
+
+        self.signal.add("olivine", y_interpolate)
 
     def longCorrect(self, T_C=23.0, normalisation="area", **kwargs):
 
@@ -179,99 +185,99 @@ class H2O(RamanProcessing):
 
         glass_corrected = glass_spectrum - olivine_y
 
-        # if inplace:
-        #     setattr(self.signal, "olivine_corrected", olivine_corrected)
-        #     self._spectrumSelect = "olivine_corrected"
-        #     self._processing["olivine_corrected"] = True
-        # else:
-        return olivine_x, olivine_y, glass_corrected, glass_spline
+        if inplace:
+            self.signal.add("interference_corrected", glass_corrected.copy())
+            self._spectrumSelect = "interference_corrected"
+            self._processing["interference_corrected"] = True
+        else:
+            return olivine_x, olivine_y, glass_corrected, glass_spline
 
-    def extract_olivine(
-        self, olivine_x, olivine_y, *, peak_prominence=10, smooth=1e-6, **kwargs
-    ):
+    # def extract_olivine(
+    #     self, olivine_x, olivine_y, *, peak_prominence=10, smooth=1e-6, **kwargs
+    # ):
 
-        # Set default values
-        default_birs = np.array(
-            [[0, 780], [900, 4000]]
-        )  # np.array([[0, 250], [460, 550], [650, 720], [1035, 4000]])
-        birs = kwargs.get("birs", default_birs)
-        fit_window = kwargs.get("fit_window", 6)
-        noise_threshold = kwargs.get("noise_threshold", 1.5)
-        threshold_scale = kwargs.get("threshold_scale", 0.0)
-        cutoff_high = 1100
-        cutoff_low = 700
+    #     # Set default values
+    #     default_birs = np.array(
+    #         [[0, 780], [900, 4000]]
+    #     )  # np.array([[0, 250], [460, 550], [650, 720], [1035, 4000]])
+    #     birs = kwargs.get("birs", default_birs)
+    #     fit_window = kwargs.get("fit_window", 6)
+    #     noise_threshold = kwargs.get("noise_threshold", 1.5)
+    #     threshold_scale = kwargs.get("threshold_scale", 0.0)
+    #     cutoff_high = 1100
+    #     cutoff_low = 700
 
-        y = kwargs.get("y", self._spectrumSelect)
-        spectrum = self.signal.get(y)
+    #     y = kwargs.get("y", self._spectrumSelect)
+    #     spectrum = self.signal.get(y)
 
-        xbir, ybir = f._extractBIR(self.x, spectrum, birs)
+    #     xbir, ybir = f._extractBIR(self.x, spectrum, birs)
 
-        # fit spline to olivine free regions of the spectrum
-        spline = cs.csaps(xbir, ybir, smooth=smooth)
-        spectrum_spline = spline(self.x)
-        self.spectrum_spline = spectrum_spline.copy()
-        # Signal attributed to olivine interference
-        olivine_interference = spectrum - spectrum_spline
-        self.olivine_interference = olivine_interference.copy()
+    #     # fit spline to olivine free regions of the spectrum
+    #     spline = cs.csaps(xbir, ybir, smooth=smooth)
+    #     spectrum_spline = spline(self.x)
+    #     self.spectrum_spline = spectrum_spline.copy()
+    #     # Signal attributed to olivine interference
+    #     olivine_interference = spectrum - spectrum_spline
+    #     self.olivine_interference = olivine_interference.copy()
 
-        # Calculate noise level
-        noise_area = (self.x > 1250) & (self.x < 2000)
-        noise = olivine_interference[noise_area].std(axis=None)
+    #     # Calculate noise level
+    #     noise_area = (self.x > 1250) & (self.x < 2000)
+    #     noise = olivine_interference[noise_area].std(axis=None)
 
-        # Remove part of the spectrum with no major olivine peaks
-        trim = (self.x > cutoff_low) & (self.x < cutoff_high)
-        olivine_trim = olivine_interference[trim]
-        x = self.x[trim]
+    #     # Remove part of the spectrum with no major olivine peaks
+    #     trim = (self.x > cutoff_low) & (self.x < cutoff_high)
+    #     olivine_trim = olivine_interference[trim]
+    #     x = self.x[trim]
 
-        # Deconvolute the major olivine peaks
-        olivine_fit = RamanProcessing(x, olivine_trim)
-        # print("fitting interference")ol
-        olivine_fit.deconvolve(
-            peak_prominence=peak_prominence,
-            noise_threshold=1.5,
-            threshold_scale=0.0,
-            min_amplitude=6,
-            min_peak_width=6,
-            fit_window=6,
-            noise=noise,
-            max_iterations=3,
-        )
+    #     # Deconvolute the major olivine peaks
+    #     olivine_fit = RamanProcessing(x, olivine_trim)
+    #     # print("fitting interference")ol
+    #     olivine_fit.deconvolve(
+    #         peak_prominence=peak_prominence,
+    #         noise_threshold=1.5,
+    #         threshold_scale=0.0,
+    #         min_amplitude=6,
+    #         min_peak_width=6,
+    #         fit_window=6,
+    #         noise=noise,
+    #         max_iterations=3,
+    #     )
 
-        olivine_main_peaks = olivine_fit.deconvolution_parameters
+    #     olivine_main_peaks = olivine_fit.deconvolution_parameters
 
-        # Deconvolute host crystal spectrum
-        olivine = Olivine(olivine_x, olivine_y)
-        olivine.baselineCorrect()
-        olivine.calculate_noise()
-        # print("fitting host")
-        olivine.deconvolve(
-            y="baseline_corrected",
-            fit_window=fit_window,
-            noise_threshold=noise_threshold,
-            threshold_scale=threshold_scale,
-        )
+    #     # Deconvolute host crystal spectrum
+    #     olivine = Olivine(olivine_x, olivine_y)
+    #     olivine.baselineCorrect()
+    #     olivine.calculate_noise()
+    #     # print("fitting host")
+    #     olivine.deconvolve(
+    #         y="baseline_corrected",
+    #         fit_window=fit_window,
+    #         noise_threshold=noise_threshold,
+    #         threshold_scale=threshold_scale,
+    #     )
 
-        stepsize = abs(np.diff(self.x).mean())
-        x_olivine_peaks = np.arange(700, 1200, int(stepsize * 10))
-        interference_max = c.sum_GaussLorentz(
-            x_olivine_peaks, *olivine_fit.deconvolution_parameters
-        ).max()
-        host_max = c.sum_GaussLorentz(
-            x_olivine_peaks, *olivine.deconvolution_parameters
-        ).max()
-        self.olivine_scale = host_max / interference_max
+    #     stepsize = abs(np.diff(self.x).mean())
+    #     x_olivine_peaks = np.arange(700, 1200, int(stepsize * 10))
+    #     interference_max = c.sum_GaussLorentz(
+    #         x_olivine_peaks, *olivine_fit.deconvolution_parameters
+    #     ).max()
+    #     host_max = c.sum_GaussLorentz(
+    #         x_olivine_peaks, *olivine.deconvolution_parameters
+    #     ).max()
+    #     self.olivine_scale = host_max / interference_max
 
-        self.olivine = c.sum_GaussLorentz(self.x, *olivine.deconvolution_parameters)
+    #     self.olivine = c.sum_GaussLorentz(self.x, *olivine.deconvolution_parameters)
 
-        olivine_corrected = spectrum - (self.olivine / self.olivine_scale)
-        self.signaladd("olivine_corrected", olivine_corrected)
-        self._spectrumSelect = "olivine_corrected"
-        self._processing["olivine_corrected"] = True
+    #     olivine_corrected = spectrum - (self.olivine / self.olivine_scale)
+    #     self.signaladd("olivine_corrected", olivine_corrected)
+    #     self._spectrumSelect = "olivine_corrected"
+    #     self._processing["olivine_corrected"] = True
 
-        self.olivinePeaks = [
-            {"center": i, "amplitude": j, "width": k, "shape": l, "baselevel": m}
-            for _, (i, j, k, l, m) in enumerate(zip(*olivine_main_peaks))
-        ]
+    #     self.olivinePeaks = [
+    #         {"center": i, "amplitude": j, "width": k, "shape": l, "baselevel": m}
+    #         for _, (i, j, k, l, m) in enumerate(zip(*olivine_main_peaks))
+    #     ]
 
     def calculate_SiH2Oareas(self, **kwargs):
 
