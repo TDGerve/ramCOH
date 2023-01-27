@@ -50,14 +50,8 @@ class H2O(RamanProcessing):
         if self.noise is None:
             self.calculate_noise()
         
-        bir_boundaries = self.birs.flatten()
-        
-        Si_left = bir_boundaries[1]
-        Si_right = bir_boundaries[bir_boundaries < 1500][-1]
+        (Si_left, Si_right), (water_left, water_right) = self._get_Si_H2O_regions()
         Si_range = (self.x > Si_left) & (self.x < Si_right)
-
-        water_left = bir_boundaries[bir_boundaries > 1500][0]
-        water_right = bir_boundaries[-2]
         water_range = (self.x > water_left) & (self.x < water_right)
 
         self.Si_SNR = max(self.signal.baseline_corrected[Si_range]) / self.noise
@@ -285,13 +279,9 @@ class H2O(RamanProcessing):
 
         if "baseline_corrected" not in self.signal.names:
             raise RuntimeError("run baseline correction first")
-
-        Si_left = max(self.birs[0])
-        Si_right = min(self.birs[-2])
+        
+        (Si_left, Si_right), (water_left, water_right) = self._get_Si_H2O_regions()
         Si_range = (self.x > Si_left) & (self.x < Si_right)
-
-        water_left = max(self.birs[-2])
-        water_right = min(self.birs[-1])
         water_range = (self.x > water_left) & (self.x < water_right)
 
         spectrum = self.signal.get("baseline_corrected")
@@ -301,3 +291,17 @@ class H2O(RamanProcessing):
         self.SiH2Oareas = SiArea, H2Oarea
 
         return self.SiH2Oareas
+
+    def _get_Si_H2O_regions(self):
+
+        bir_boundaries = self.birs.flatten()
+        
+        Si_left = bir_boundaries[1]
+        Si_right = bir_boundaries[bir_boundaries < 1500][-1]
+
+        water_left = bir_boundaries[bir_boundaries > 1500][0]
+        water_right = bir_boundaries[-2]
+
+        return (Si_left, Si_right), (water_left, water_right)
+
+
