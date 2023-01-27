@@ -308,7 +308,7 @@ class H2O(RamanProcessing):
         if sum(Si_range) == 0:
             Si_left, Si_right = 200, 1400
         if sum(water_range) == 0:
-            water_left, water_right = 1600,4000
+            water_left, water_right = 2000,4000
 
         return (Si_left, Si_right), (water_left, water_right)
 
