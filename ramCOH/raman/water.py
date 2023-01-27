@@ -282,7 +282,7 @@ class H2O(RamanProcessing):
         
         (Si_left, Si_right), (water_left, water_right) = self._get_Si_H2O_regions()
         Si_range = (self.x > Si_left) & (self.x < Si_right)
-        water_range = (self.x > water_left) & (self.x < water_right)
+        water_range = (self.x > water_left) & (self.x < water_right)        
 
         spectrum = self.signal.get("baseline_corrected")
         SiArea = np.trapz(spectrum[Si_range], self.x[Si_range])
@@ -301,6 +301,14 @@ class H2O(RamanProcessing):
 
         water_left = bir_boundaries[bir_boundaries > 1500][0]
         water_right = bir_boundaries[-2]
+
+        Si_range = (self.x > Si_left) & (self.x < Si_right)
+        water_range = (self.x > water_left) & (self.x < water_right)
+
+        if sum(Si_range) == 0:
+            Si_left, Si_right = 200, 1400
+        if sum(water_range) == 0:
+            water_left, water_right = 1600,4000
 
         return (Si_left, Si_right), (water_left, water_right)
 
