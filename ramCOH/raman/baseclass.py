@@ -17,7 +17,6 @@ class Signal:
         self.x = x
         self.raw = y
         self._names: List[str] = ["raw"]
-        
 
     def add(self, name, values: np.ndarray):
         setattr(self, name, values)
@@ -53,7 +52,6 @@ class RamanProcessing:
             "smoothed": False,
             "interpolated": False,
             "interference_corrected": False,
-            
         }
         self.birs = None
         self._spectrumSelect = "raw"
@@ -61,7 +59,6 @@ class RamanProcessing:
     @property
     def processing(self):
         return self._processing
-
 
     def smooth(self, smoothType="Gaussian", kernelWidth=9, **kwargs):
         """
@@ -125,14 +122,11 @@ class RamanProcessing:
         if (hasattr(self, "birs")) & (baseline_regions is None):
             baseline_regions = self.birs
 
-            
-
         _, ybir = f._extractBIR(
             self.x, self.signal.baseline_corrected, baseline_regions
         )
 
         self.noise = ybir.std(axis=None) * 2
-
 
     def normalise(self, **kwargs):
 
@@ -145,8 +139,7 @@ class RamanProcessing:
         self._processing["normalised"] = True
         self._spectrumSelect = "normalised"
 
-    def interpolate(self, *args, interpolate=[[780, 900]], smooth_factor=1, **kwargs):        
-
+    def interpolate(self, *args, interpolate=[[780, 900]], smooth_factor=1, **kwargs):
 
         interference_corrected = self._processing.get("interference_corrected", False)
         if interference_corrected:
@@ -163,7 +156,6 @@ class RamanProcessing:
                 spectrum_index = region[1] < self.x < region[0]
             else:
                 spectrum_index = spectrum_index | (region[1] < self.x < region[0])
-    
 
         interpolate_index = ~spectrum_index
 
@@ -268,7 +260,11 @@ class RamanProcessing:
         peak_prominence = peak_height + (noise / 2)
 
         _, centers, widths = cf._find_peak_parameters(
-            x=x, y=spectrum, prominence=peak_prominence, height=peak_height, width=6,
+            x=x,
+            y=spectrum,
+            prominence=peak_prominence,
+            height=peak_height,
+            width=6,
         )
         ranges = cf._get_peakFit_ranges(
             centers=centers, half_widths=widths, fit_window=fit_window
@@ -283,28 +279,32 @@ class RamanProcessing:
         # )
 
         fitted_parameters = []
-        for range in ranges:
+        residual = 0
+        total_length = 0
+        for i, range in enumerate(ranges):
             xtrim, ytrim = cf._trimxy_ranges(x, spectrum, range)
             # noise_threshold_local = threshold_scaler(ytrim.max())
-            if print_output:
-                print(
-                    f"max y: {ytrim.max()}, range {range}"
-                )
-            try:
-                parameters, *_ = d.deconvolve_signal(
-                    x=xtrim,
-                    y=ytrim,
-                    # noise_threshold=noise_threshold_local,
-                    residuals_threshold=residuals_threshold,
-                    baseline0=baseline0,
-                    min_peak_width=min_peak_width,
-                    min_amplitude=min_amplitude,
-                    noise=noise,
-                    max_iterations=max_iterations,
-                )
-                fitted_parameters.append(parameters)
-            except:
-                warn(f"range {range} skipped.")
+
+            print(f"processing range {i:02d}/{len(ranges):02d}\r")
+            # try:
+            parameters, residual_local = d.deconvolve_signal(
+                x=xtrim,
+                y=ytrim,
+                # noise_threshold=noise_threshold_local,
+                residuals_threshold=residuals_threshold,
+                baseline0=baseline0,
+                min_peak_width=min_peak_width,
+                min_amplitude=min_amplitude,
+                noise=noise,
+                max_iterations=max_iterations,
+            )
+            fitted_parameters.append(parameters)
+            residual += residual_local * len(xtrim)
+            total_length += len(xtrim)
+            # except:
+            #     warn(f"range {range} skipped.")
+
+        residual = residual / total_length
 
         self.deconvolution_parameters = []
         for parameter in zip(*fitted_parameters):
