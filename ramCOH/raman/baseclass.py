@@ -4,6 +4,7 @@ from warnings import warn
 import csaps as cs
 import numpy as np
 import scipy.optimize as opt
+import scipy.signal as sig
 
 from ..signal_processing import curve_fitting as cf
 from ..signal_processing import curves as c
@@ -242,12 +243,11 @@ class RamanProcessing:
     def deconvolve(
         self,
         *,
-        peak_prominence=3,
-        noise_threshold=1.8,
-        threshold_scale=0.1,
+        peak_height,
+        residuals_threshold=0.9,
         baseline0=True,
-        min_amplitude=8,
-        min_peak_width=6,
+        min_amplitude=2,
+        min_peak_width=4,
         fit_window=4,
         noise=None,
         max_iterations=5,
@@ -264,34 +264,38 @@ class RamanProcessing:
             spectrum = spectrum[x < cutoff]
             x = x[x < cutoff]
 
+        # smooth_spectrum = sig.savgol_filter(spectrum, window_length=50, polyorder=2)
+        peak_prominence = peak_height + (noise / 2)
+
         _, centers, widths = cf._find_peak_parameters(
-            x=x, y=spectrum, prominence=peak_prominence
+            x=x, y=spectrum, prominence=peak_prominence, height=peak_height, width=6,
         )
         ranges = cf._get_peakFit_ranges(
             centers=centers, half_widths=widths, fit_window=fit_window
         )
 
         # Scale the noise threshold based on max y
-        threshold_scaler = (
-            lambda y: (
-                (y / spectrum.max() * 2 * threshold_scale) + (1 - threshold_scale)
-            )
-            * noise_threshold
-        )
+        # threshold_scaler = (
+        #     lambda y: (
+        #         (y / spectrum.max() * 2 * threshold_scale) + (1 - threshold_scale)
+        #     )
+        #     * noise_threshold
+        # )
 
         fitted_parameters = []
         for range in ranges:
             xtrim, ytrim = cf._trimxy_ranges(x, spectrum, range)
-            noise_threshold_local = threshold_scaler(ytrim.max())
+            # noise_threshold_local = threshold_scaler(ytrim.max())
             if print_output:
                 print(
-                    f"max y: {ytrim.max()}, range {range}, threshold: {noise_threshold_local}"
+                    f"max y: {ytrim.max()}, range {range}"
                 )
             try:
                 parameters, *_ = d.deconvolve_signal(
                     x=xtrim,
                     y=ytrim,
-                    noise_threshold=noise_threshold_local,
+                    # noise_threshold=noise_threshold_local,
+                    residuals_threshold=residuals_threshold,
                     baseline0=baseline0,
                     min_peak_width=min_peak_width,
                     min_amplitude=min_amplitude,

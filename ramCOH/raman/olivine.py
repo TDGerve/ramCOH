@@ -1,4 +1,5 @@
 import numpy as np
+
 from .baseclass import RamanProcessing
 
 
@@ -33,10 +34,10 @@ class Olivine(RamanProcessing):
         *,
         peak_prominence=4,
         noise_threshold=1.6,
+        fit_window=6,
         threshold_scale=0.2,
         min_amplitude=3,
-        min_peak_width=6,
-        fit_window=6,
+        min_peak_width=6,        
         max_iterations=5,
         cutoff=1400,
         **kwargs,

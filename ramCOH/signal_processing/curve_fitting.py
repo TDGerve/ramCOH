@@ -1,9 +1,12 @@
-import numpy as np
 import warnings
-from scipy import signal
-import scipy.optimize as opt
+
 import csaps as cs
+import numpy as np
+import scipy.optimize as opt
+from scipy import signal
+
 from . import curves as c
+
 
 def _merge_overlapping_ranges(ranges):
     """
@@ -178,13 +181,12 @@ def _find_peak_parameters(x, y, prominence, **kwargs):
         widths of peaks
     """
 
-    prominence_absolute = (prominence / 100) * np.max(y)
+    peak_positions, props = signal.find_peaks(y, prominence=prominence, **kwargs)
+    prominence_data = tuple(props[key] for key in ("prominences", "left_bases", "right_bases"))
 
-    peaks = signal.find_peaks(y, prominence=prominence_absolute, **kwargs)
-
-    amplitudes, centers = y[peaks[0]], x[peaks[0]]
+    amplitudes, centers = y[peak_positions], x[peak_positions]
     # full width half maximum in x
-    widths = signal.peak_widths(y, peaks[0])[0] * abs(np.diff(x).mean())
+    widths = signal.peak_widths(y, peak_positions, rel_height=0.5, prominence_data=prominence_data)[0] * abs(np.diff(x).mean())
 
     sort = np.argsort(centers)
 
@@ -215,6 +217,8 @@ def diad(x, y, peak_prominence=40, fit_window=8, curve="GL"):
     y = y[(x > 1250) & (x < 1450)]
     x = x[(x > 1250) & (x < 1450)]
 
+    # convert peak prominence from relative to absolute
+    peak_prominence = (peak_prominence * 100) / np.max(y)
     # find initial guesses for peak fitting
     amplitudes, centers, widths = _find_peak_parameters(
         x=x, y=y, prominence=peak_prominence
