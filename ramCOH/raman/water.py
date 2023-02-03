@@ -1,16 +1,11 @@
-from warnings import warn
+from typing import Tuple, Union
 
-import csaps as cs
 import numpy as np
-import scipy.interpolate as itp
+import numpy.typing as npt
 import scipy.optimize as opt
 
-from ..signal_processing import curve_fitting as cf
-from ..signal_processing import curves as c
-from ..signal_processing import deconvolution as d
 from ..signal_processing import functions as f
 from .baseclass import RamanProcessing
-from .olivine import Olivine
 
 
 class H2O(RamanProcessing):
@@ -22,15 +17,7 @@ class H2O(RamanProcessing):
     def __init__(self, x, y, **kwargs):
 
         super().__init__(x, y, **kwargs)
-        self._processing.update(
-            {"long_corrected": False}
-        )
-
-    def add_olivine_host(self, olivine_x, olivine_y):
-        interpolate = itp.interp1d(olivine_x, olivine_y, bounds_error=False, fill_value=np.nan)
-        y_interpolate = interpolate(self.signal.x)
-
-        self.signal.add("olivine", y_interpolate)
+        self._processing.update({"long_corrected": False})
 
     def longCorrect(self, T_C=23.0, normalisation="area", **kwargs):
 
@@ -49,7 +36,7 @@ class H2O(RamanProcessing):
 
         if self.noise is None:
             self.calculate_noise()
-        
+
         (Si_left, Si_right), (water_left, water_right) = self._get_Si_H2O_regions()
         Si_range = (self.x > Si_left) & (self.x < Si_right)
         water_range = (self.x > water_left) & (self.x < water_right)
@@ -57,136 +44,140 @@ class H2O(RamanProcessing):
         self.Si_SNR = max(self.signal.baseline_corrected[Si_range]) / self.noise
         self.H2O_SNR = max(self.signal.baseline_corrected[water_range]) / self.noise
 
+    # def interpolate(self, *, interpolate=[[780, 900]], smooth_factor=1, **kwargs):
 
-    def interpolate(self, *, interpolate=[[780, 900]], smooth_factor=1, **kwargs):
+    #     # birs = np.array(
+    #     #     [[self.x.min(), min(interpolate)], [max(interpolate), self.x.max()]]
+    #     # )
+    #     spectrum_index = None
+    #     for region in enumerate(interpolate):
+    #         if not spectrum_index:
+    #             spectrum_index = region[1] < self.x < region[0]
+    #         else:
+    #             spectrum_index = spectrum_index | (region[1] < self.x < region[0])
 
-        # birs = np.array(
-        #     [[self.x.min(), min(interpolate)], [max(interpolate), self.x.max()]]
-        # )
-        spectrum_index = None
-        for region in enumerate(interpolate):
-            if not spectrum_index:
-                spectrum_index = region[1] < self.x < region[0]
-            else:
-                spectrum_index = spectrum_index | (region[1] < self.x < region[0])
+    #     spectrum = self.signal.get("raw")
+    #     smooth = smooth_factor * 1e-5
+    #     use = kwargs.get("use", True)
 
-        spectrum = self.signal.get("raw")
-        smooth = smooth_factor * 1e-5
-        use = kwargs.get("use", True)
+    #     # # Boolean array for glass only regions; no interference peaks
+    #     # for i, region in enumerate(birs):
+    #     #     if i == 0:
+    #     #         glassIndex = (self.x > region[0]) & (self.x < region[1])
+    #     #     else:
+    #     #         glassIndex = glassIndex | ((self.x > region[0]) & (self.x < region[1]))
+    #     #array with interference peaks
+    #     interpolate_index = ~spectrum_index
 
-        # # Boolean array for glass only regions; no interference peaks
-        # for i, region in enumerate(birs):
-        #     if i == 0:
-        #         glassIndex = (self.x > region[0]) & (self.x < region[1])
-        #     else:
-        #         glassIndex = glassIndex | ((self.x > region[0]) & (self.x < region[1]))
-        #array with interference peaks
-        interpolate_index = ~spectrum_index
+    #     xbir = self.x[spectrum_index]
+    #     ybir = spectrum[spectrum_index]
 
-        xbir = self.x[spectrum_index]
-        ybir = spectrum[spectrum_index]
+    #     spline = cs.csaps(xbir, ybir, smooth=smooth)
+    #     self.spectrum_spline = spline(self.x)
+    #     # Interpolated residual
+    #     noise = (spectrum[spectrum_index] - self.spectrum_spline[spectrum_index]).std(
+    #         axis=None
+    #     )
 
-        spline = cs.csaps(xbir, ybir, smooth=smooth)
-        self.spectrum_spline = spline(self.x)
-        # Interpolated residual
-        noise = (spectrum[spectrum_index] - self.spectrum_spline[spectrum_index]).std(
-            axis=None
-        )
+    #     # _, baseline = f._extractBIR(
+    #     #     self.x[self.x > 350], self.interpolation_residuals[self.x > 350], birs
+    #     # )
+    #     # noise = baseline.std(axis=None)
+    #     # Add signal noise to the spline
+    #     noise_spline = self.spectrum_spline + np.random.normal(0, noise, len(self.x))
 
-        # _, baseline = f._extractBIR(
-        #     self.x[self.x > 350], self.interpolation_residuals[self.x > 350], birs
-        # )
-        # noise = baseline.std(axis=None)
-        # Add signal noise to the spline
-        noise_spline = self.spectrum_spline + np.random.normal(0, noise, len(self.x))
+    #     # only replace interpolated parts of the spectrum
+    #     self.signal.add("interpolated", spectrum.copy())
+    #     self.signal.interpolated[interpolate_index] = noise_spline[interpolate_index]
 
-        # only replace interpolated parts of the spectrum
-        self.signal.add("interpolated", spectrum.copy())
-        self.signal.interpolated[interpolate_index] = noise_spline[interpolate_index]
+    #     # Area of interpolated regions
+    #     # self.interpolated_area = np.trapz(
+    #     #     self.interpolation_residuals[interpolate_index], self.x[interpolate_index]
+    #     # )
 
-        # Area of interpolated regions
-        # self.interpolated_area = np.trapz(
-        #     self.interpolation_residuals[interpolate_index], self.x[interpolate_index]
-        # )
+    #     if use:
+    #         self._spectrumSelect = "interpolated"
+    #         self._processing["interpolated"] = True
 
-        if use:
-            self._spectrumSelect = "interpolated"
-            self._processing["interpolated"] = True
+    # def _interpolate_olivine_peaks(self, olivine_free_regions, smooth=1e-6, **kwargs):
 
-    def _interpolate_olivine_peaks(self, olivine_free_regions, smooth=1e-6, **kwargs):
+    #     spectrum = self.signal.get("raw")
 
-        spectrum = self.signal.get("raw")
+    #     xbir, ybir = f._extractBIR(self.x, spectrum, olivine_free_regions)
 
-        xbir, ybir = f._extractBIR(self.x, spectrum, olivine_free_regions)
+    #     spline_model = cs.csaps(xbir, ybir, smooth=smooth)
+    #     spline = spline_model(self.x)
 
-        spline_model = cs.csaps(xbir, ybir, smooth=smooth)
-        spline = spline_model(self.x)
-
-        return spline
+    #     return spline
 
     @staticmethod
-    def _root_olivine_interference(
-        scaling, x, x_range, olivine, glass, glass_interpolated
+    def _root_interference(
+        scaling: Tuple[float, int],
+        x,
+        interference: npt.NDArray,
+        spectrum: npt.NDArray,
+        interpolated_interval: npt.NDArray,
+        interval: Tuple[float, float],
     ):
 
         scale, shift = scaling
-        x_min, x_max = x_range
+        x_min, x_max = interval
         # Trim glass spectra to length
-        glass = glass[(x > x_min) & (x < x_max)]
-        glass_interpolated = glass_interpolated[(x > x_min) & (x < x_max)]
-        # Trim and scale olivine spectrum
-        olivine_scaled = olivine[(x > (x_min + shift)) & (x < (x_max + shift))] * scale
-        # Subtract olivine
-        glass_corrected = glass - olivine_scaled
-
-        return [sum(abs(glass_interpolated - glass_corrected)), 0]
-
-    def subtract_olivine_host(
-        self, olivine: Olivine, boundaries=[700, 1020], inplace=False, **kwargs
-    ):
-        if not hasattr(olivine.signal, "baseline_corrected"):
-            raise NameError("Apply baseline correction to olivine first")
-
-        x_min, x_max = min(olivine.x), max(olivine.x)
-
-        boundary_left, boundary_right = boundaries
-        x_range = (self.x > x_min) & (self.x < x_max)
-        x = self.x[x_range]
-
-        glass_spectrum = getattr(self.signal, "raw")[x_range]
-        glass_spline = self._interpolate_olivine_peaks(
-            olivine_free_regions=olivine.birs
-        )[x_range]
-
-        olivine_interpolation_model = itp.interp1d(
-            olivine.x, olivine.signal.baseline_corrected
+        spectrum = spectrum[(x > x_min) & (x < x_max)]
+        # Trim, shift and scale olivine spectrum
+        interference_scaled = (
+            interference[(x > (x_min + shift)) & (x < (x_max + shift))] * scale
         )
-        olivine_y = olivine_interpolation_model(x)
+        # Subtract olivine
+        spectrum_corrected = spectrum - interference_scaled
 
-        olivine_scaling = opt.root(
-            self._root_olivine_interference,
+        return [sum(abs(interpolated_interval - spectrum_corrected)), 0]
+
+    def subtract_interference(
+        self,
+        interference,
+        interval: Tuple[Union[float, int], Union[float, int]],
+        smooth_factor,
+        inplace=True,
+        **kwargs
+    ):
+        use = kwargs.get("use", False)
+
+        boundary_left, boundary_right = interval
+        x = self.x
+
+        spectrum = self.signal.get("raw")
+        spline_interval = f._interpolate_section(
+            x, spectrum, interpolate=[interval], smooth_factor=smooth_factor
+        )
+
+        scaling = opt.root(
+            self._root_interference,
             x0=[0.2, 0],
             args=(
                 x,
+                interference,
+                spectrum,
+                spline_interval,
                 [boundary_left, boundary_right],
-                olivine_y,
-                glass_spectrum,
-                glass_spline,
             ),
         ).x
 
-        scale, shift = olivine_scaling
-        olivine_x = x + shift
-        olivine_y = olivine_y * scale
+        scale, shift = scaling
+        shift = int(shift)
+        interference = f.shift_spectrum(interference, shift)
+        interference = interference * scale
 
-        glass_corrected = glass_spectrum - olivine_y
+        spectrum_corrected = spectrum - interference
 
         if inplace:
-            self.signal.add("interference_corrected", glass_corrected.copy())
-            self._spectrumSelect = "interference_corrected"
-            self._processing["interference_corrected"] = True
-        else:
-            return olivine_x, olivine_y, glass_corrected, glass_spline
+            self.signal.add("interference_corrected", spectrum_corrected.copy())
+            if use:
+                self._spectrumSelect = "interference_corrected"
+                self._processing["interference_corrected"] = True
+            return
+
+        return spectrum_corrected
 
     # def extract_olivine(
     #     self, olivine_x, olivine_y, *, peak_prominence=10, smooth=1e-6, **kwargs
@@ -279,10 +270,10 @@ class H2O(RamanProcessing):
 
         if "baseline_corrected" not in self.signal.names:
             raise RuntimeError("run baseline correction first")
-        
+
         (Si_left, Si_right), (water_left, water_right) = self._get_Si_H2O_regions()
         Si_range = (self.x > Si_left) & (self.x < Si_right)
-        water_range = (self.x > water_left) & (self.x < water_right)        
+        water_range = (self.x > water_left) & (self.x < water_right)
 
         spectrum = self.signal.get("baseline_corrected")
         SiArea = np.trapz(spectrum[Si_range], self.x[Si_range])
@@ -295,7 +286,7 @@ class H2O(RamanProcessing):
     def _get_Si_H2O_regions(self):
 
         bir_boundaries = self.birs.flatten()
-        
+
         Si_left = bir_boundaries[1]
         Si_right = bir_boundaries[bir_boundaries < 1500][-1]
 
@@ -308,8 +299,6 @@ class H2O(RamanProcessing):
         if sum(Si_range) == 0:
             Si_left, Si_right = 200, 1400
         if sum(water_range) == 0:
-            water_left, water_right = 2000,4000
+            water_left, water_right = 2000, 4000
 
         return (Si_left, Si_right), (water_left, water_right)
-
-

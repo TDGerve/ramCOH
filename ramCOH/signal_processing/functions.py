@@ -1,7 +1,10 @@
-import pandas as pd
-import numpy as np
 from importlib import resources
+from typing import List, Tuple
+
 import csaps as cs
+import numpy as np
+import pandas as pd
+
 from . import curves as c
 
 
@@ -51,6 +54,15 @@ def trim_sort(x, y, cutoff=0):
     x_sort = x[sort]
 
     return x_sort[x > cutoff], y_sort[x > cutoff]
+
+def shift_spectrum(spectrum, shift: int):
+    if shift > 0:
+            spectrum = np.concatenate([spectrum[shift:], [0] * shift])
+    if shift < 0:
+        spectrum = np.concatenate([[0] * abs(shift), spectrum[:shift]])
+
+    return spectrum
+
 
 
 def smooth(y, smoothType="Gaussian", kernelWidth=9):
@@ -145,7 +157,7 @@ def H2Oraman(rWS, *, intercept, slope):
     return (100 * (intercept + slope * rWS)) / (1 + intercept + slope * rWS)
 
 
-def _extractBIR(x, y, birs):
+def _extractBIR_bool(x, birs):
     """Extract baseline interpolation regions (birs) from a spectrum
 
     Parameters
@@ -168,7 +180,28 @@ def _extractBIR(x, y, birs):
     for bir in birs[1:]:
         selection = selection | ((x > bir[0]) & (x < bir[1]))
 
+    return selection
+
+def _extractBIR(x, y, birs):
+
+    selection = _extractBIR_bool(x, birs)
+
     return x[selection], y[selection]
+
+
+def _interpolate_section(x, y, interpolate, smooth_factor):
+
+    smooth = smooth_factor * 1e-5
+
+    interpolate_index = _extractBIR_bool(x, interpolate)
+    spectrum_index = ~ interpolate_index
+
+    spline = cs.csaps(x[spectrum_index], y[spectrum_index], smooth=smooth)
+
+    interpolated_x = x[interpolate_index]
+    interpolated_y = spline(interpolated_x)
+
+    return interpolated_x, interpolated_y, spline
 
 
 def _calculate_noise(x, y, smooth_factor=1):
@@ -197,6 +230,6 @@ def _calculate_noise(x, y, smooth_factor=1):
     spline = cs.csaps(x, y, smooth=smooth)
     # Standard deviation on the residuals of y and spline
     noise_data = y - spline(x)
-    noise = noise_data.std(axis=None)
+    noise = noise_data.std(axis=None) * 2
 
     return noise, spline

@@ -1,10 +1,10 @@
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from warnings import warn
 
 import csaps as cs
 import numpy as np
+import scipy.interpolate as itp
 import scipy.optimize as opt
-import scipy.signal as sig
 
 from ..signal_processing import curve_fitting as cf
 from ..signal_processing import curves as c
@@ -19,6 +19,9 @@ class Signal:
         self._names: List[str] = ["raw"]
 
     def add(self, name, values: np.ndarray):
+        if name in self._names:
+            self.set(name, values)
+            return
         setattr(self, name, values)
         self._names.append(name)
 
@@ -28,11 +31,21 @@ class Signal:
         setattr(self, name, values)
 
     def get(self, name):
-        return getattr(self, name)
+        return getattr(self, name, None)
 
     @property
     def all(self):
         return {name: getattr(self, name) for name in self.names}
+
+    def interpolate_spectrum(self, old_x, old_y):
+        interpolate = itp.interp1d(
+            old_x, old_y, bounds_error=False, fill_value="extrapolate"
+        )
+        return interpolate(self.x)
+
+    def set_with_interpolation(self, name, x, y):
+        new_y = self.interpolate_spectrum(x, y)
+        self.add(name, new_y)
 
     @property
     def names(self):
@@ -54,6 +67,7 @@ class RamanProcessing:
             "interference_corrected": False,
         }
         self.birs = None
+        self.peaks = []
         self._spectrumSelect = "raw"
 
     @property
@@ -116,15 +130,14 @@ class RamanProcessing:
 
     def calculate_noise(self, baseline_regions=None):
 
-        if "baseline_corrected" not in self.signal.names:
+        baseline_corrected = self.signal.get("baseline_corrected")
+        if baseline_corrected is None:
             raise RuntimeError("Run baseline correction first")
 
         if (hasattr(self, "birs")) & (baseline_regions is None):
             baseline_regions = self.birs
 
-        _, ybir = f._extractBIR(
-            self.x, self.signal.baseline_corrected, baseline_regions
-        )
+        _, ybir = f._extractBIR(self.x, baseline_corrected, baseline_regions)
 
         self.noise = ybir.std(axis=None) * 2
 
@@ -139,52 +152,61 @@ class RamanProcessing:
         self._processing["normalised"] = True
         self._spectrumSelect = "normalised"
 
-    def interpolate(self, *args, interpolate=[[780, 900]], smooth_factor=1, **kwargs):
+    def interpolate(
+        self, *args, interpolate=List[Tuple], smooth_factor=1, add_noise=True, **kwargs
+    ):
 
-        interference_corrected = self._processing.get("interference_corrected", False)
-        if interference_corrected:
-            spectrum = self.signal.get("interference_corrected")
-        else:
+        spectrum = self.signal.get("interference_corrected")
+        if spectrum is None:
             spectrum = self.signal.get("raw")
+        x = self.x
 
-        smooth = smooth_factor * 1e-5
         use = kwargs.get("use", True)
+        output = kwargs.get("output", False)
 
-        spectrum_index = None
-        for region in enumerate(interpolate):
-            if not spectrum_index:
-                spectrum_index = region[1] < self.x < region[0]
-            else:
-                spectrum_index = spectrum_index | (region[1] < self.x < region[0])
+        interpolate_index = f._extractBIR_bool(x, interpolate)
+        spectrum_index = ~interpolate_index
 
-        interpolate_index = ~spectrum_index
+        interpolated_x, interpolated_y, spline = f._interpolate_section(
+            x, spectrum, interpolate, smooth_factor
+        )
 
-        xbir = self.x[spectrum_index]
-        ybir = spectrum[spectrum_index]
-
-        spline = cs.csaps(xbir, ybir, smooth=smooth)
-        self.spectrum_spline = spline(self.x)
-        # Interpolated residual
-        noise = (spectrum[spectrum_index] - self.spectrum_spline[spectrum_index]).std(
-            axis=None
-        ) * 2
-
-        # Add signal noise to the spline
-        noise_spline = self.spectrum_spline + np.random.normal(0, noise, len(self.x))
-
-        # only replace interpolated parts of the spectrum
-        self.signal.add("interpolated", spectrum.copy())
-        self.signal.interpolated[interpolate_index] = noise_spline[interpolate_index]
+        if add_noise:
+            noise = (spectrum[spectrum_index] - spline(spectrum_index)).std(
+                axis=None
+            ) * 2
+            interpolated_y = interpolated_y + np.random.normal(
+                0, noise, len(interpolated_y)
+            )
 
         if use:
-            self._spectrumSelect = "interpolated"
-            self._processing["interpolated"] = True
+            self.add_interpolation(interpolate_index, interpolated_y)
+
+        if output:
+            return interpolated_x, interpolated_y
+
+    def add_interpolation(
+        self, interpolation_indeces: np.ndarray[bool], interpolated_y: np.ndarray
+    ):
+
+        spectrum = self.signal.get("interference_corrected")
+        if spectrum is None:
+            spectrum = self.signal.get("raw")
+
+        interpolated_spectrum = spectrum.copy()
+        interpolated_spectrum[interpolation_indeces] = interpolated_y.values()
+
+        self.signal.add("interpolated", interpolated_spectrum)
+
+        self._spectrumSelect = "interpolated"
+        self._processing["interpolated"] = True
 
     def fitPeaks(self, peak_prominence=3, fit_window=12, curve="GL", **kwargs):
 
         y = kwargs.get("y", self._spectrumSelect)
         spectrum = self.signal.get(y)
-        self.peaks = {}
+        # clear old peaks
+        self.peaks = []
         self.curve = curve
         curveDict = {"GL": c.GaussLorentz, "G": c.Gaussian, "L": c.Lorentzian}
 
@@ -230,7 +252,7 @@ class RamanProcessing:
             if curve == "GL":
                 params.append("shape")
 
-            self.peaks[i] = {k: fitParams[j] for j, k in enumerate(params)}
+            self.peaks.append({k: fitParams[j] for j, k in enumerate(params)})
 
     def deconvolve(
         self,
@@ -238,12 +260,11 @@ class RamanProcessing:
         peak_height,
         residuals_threshold=0.9,
         baseline0=True,
-        min_amplitude=2,
+        min_amplitude=1,
         min_peak_width=4,
         fit_window=4,
         noise=None,
         max_iterations=5,
-        print_output=False,
         **kwargs,
     ):
 
@@ -255,6 +276,8 @@ class RamanProcessing:
             cutoff = kwargs.get("cutoff")
             spectrum = spectrum[x < cutoff]
             x = x[x < cutoff]
+        # clear old peaks
+        self.peaks = []
 
         # smooth_spectrum = sig.savgol_filter(spectrum, window_length=50, polyorder=2)
         peak_prominence = peak_height + (noise / 2)
@@ -270,14 +293,6 @@ class RamanProcessing:
             centers=centers, half_widths=widths, fit_window=fit_window
         )
 
-        # Scale the noise threshold based on max y
-        # threshold_scaler = (
-        #     lambda y: (
-        #         (y / spectrum.max() * 2 * threshold_scale) + (1 - threshold_scale)
-        #     )
-        #     * noise_threshold
-        # )
-
         fitted_parameters = []
         residual = 0
         total_length = 0
@@ -285,32 +300,33 @@ class RamanProcessing:
             xtrim, ytrim = cf._trimxy_ranges(x, spectrum, range)
             # noise_threshold_local = threshold_scaler(ytrim.max())
 
-            print(f"processing range {i:02d}/{len(ranges):02d}\r")
-            # try:
-            parameters, residual_local = d.deconvolve_signal(
-                x=xtrim,
-                y=ytrim,
-                # noise_threshold=noise_threshold_local,
-                residuals_threshold=residuals_threshold,
-                baseline0=baseline0,
-                min_peak_width=min_peak_width,
-                min_amplitude=min_amplitude,
-                noise=noise,
-                max_iterations=max_iterations,
-            )
-            fitted_parameters.append(parameters)
-            residual += residual_local * len(xtrim)
-            total_length += len(xtrim)
-            # except:
-            #     warn(f"range {range} skipped.")
+            print(f"processing range {i+1:02d}/{len(ranges):02d}\r")
+            try:
+                parameters, residual_local = d.deconvolve_signal(
+                    x=xtrim,
+                    y=ytrim,
+                    # noise_threshold=noise_threshold_local,
+                    residuals_threshold=residuals_threshold,
+                    baseline0=baseline0,
+                    min_peak_width=min_peak_width,
+                    min_amplitude=min_amplitude,
+                    noise=noise,
+                    max_iterations=max_iterations,
+                )
+                fitted_parameters.append(parameters)
+                residual += residual_local * len(xtrim)
+                total_length += len(xtrim)
+            except IndexError:
+                warn(f"range {[int(i) for i in range]}skipped.")
 
         residual = residual / total_length
 
-        self.deconvolution_parameters = []
-        for parameter in zip(*fitted_parameters):
-            self.deconvolution_parameters.append(np.concatenate(parameter))
+        deconvolution_parameters = [np.concatenate(p) for p in zip(*fitted_parameters)]
+        self.signal.add(
+            name="deconvoluted", values=c.sum_GaussLorentz(x, *deconvolution_parameters)
+        )
 
-        self.deconvoluted_peaks = [
+        self.peaks = [
             {"center": i, "amplitude": j, "width": k, "shape": l, "baselevel": m}
-            for _, (i, j, k, l, m) in enumerate(zip(*self.deconvolution_parameters))
+            for _, (i, j, k, l, m) in enumerate(zip(*deconvolution_parameters))
         ]

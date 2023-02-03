@@ -13,7 +13,7 @@ def deconvolve_signal(
     x,
     y,
     min_peak_width=4,
-    min_amplitude=2,
+    min_amplitude=1,
     residuals_threshold=0.9,
     max_iterations=5,
     baseline0=True,
