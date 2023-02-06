@@ -3,6 +3,7 @@ from typing import List, Tuple
 
 import csaps as cs
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 
 from . import curves as c
@@ -55,14 +56,17 @@ def trim_sort(x, y, cutoff=0):
 
     return x_sort[x > cutoff], y_sort[x > cutoff]
 
-def shift_spectrum(spectrum, shift: int):
+
+def shift_spectrum(spectrum: npt.NDArray, shift: int) -> npt.NDArray:
+    if shift == 0:
+        return spectrum
+
     if shift > 0:
-            spectrum = np.concatenate([spectrum[shift:], [0] * shift])
+        spectrum = np.concatenate([spectrum[shift:], [0] * shift])
     if shift < 0:
         spectrum = np.concatenate([[0] * abs(shift), spectrum[:shift]])
 
     return spectrum
-
 
 
 def smooth(y, smoothType="Gaussian", kernelWidth=9):
@@ -182,6 +186,7 @@ def _extractBIR_bool(x, birs):
 
     return selection
 
+
 def _extractBIR(x, y, birs):
 
     selection = _extractBIR_bool(x, birs)
@@ -194,7 +199,7 @@ def _interpolate_section(x, y, interpolate, smooth_factor):
     smooth = smooth_factor * 1e-5
 
     interpolate_index = _extractBIR_bool(x, interpolate)
-    spectrum_index = ~ interpolate_index
+    spectrum_index = ~interpolate_index
 
     spline = cs.csaps(x[spectrum_index], y[spectrum_index], smooth=smooth)
 

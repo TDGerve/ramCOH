@@ -137,7 +137,7 @@ class H2O(RamanProcessing):
         self,
         interference,
         interval: Tuple[Union[float, int], Union[float, int]],
-        smooth_factor,
+        smoothing,
         inplace=True,
         **kwargs
     ):
@@ -147,8 +147,8 @@ class H2O(RamanProcessing):
         x = self.x
 
         spectrum = self.signal.get("raw")
-        spline_interval = f._interpolate_section(
-            x, spectrum, interpolate=[interval], smooth_factor=smooth_factor
+        _, spline_interval, _ = f._interpolate_section(
+            x, spectrum, interpolate=[interval], smooth_factor=smoothing
         )
 
         scaling = opt.root(

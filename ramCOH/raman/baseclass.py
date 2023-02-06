@@ -31,11 +31,14 @@ class Signal:
         setattr(self, name, values)
 
     def get(self, name):
-        return getattr(self, name, None)
+        array = getattr(self, name, None)
+        if array is not None:
+            array = array.copy()
+        return array
 
     @property
     def all(self):
-        return {name: getattr(self, name) for name in self.names}
+        return {name: self.get(name) for name in self.names}
 
     def interpolate_spectrum(self, old_x, old_y):
         interpolate = itp.interp1d(
@@ -258,7 +261,7 @@ class RamanProcessing:
         self,
         *,
         peak_height,
-        residuals_threshold=0.9,
+        residuals_threshold=10,
         baseline0=True,
         min_amplitude=1,
         min_peak_width=4,
@@ -300,7 +303,7 @@ class RamanProcessing:
             xtrim, ytrim = cf._trimxy_ranges(x, spectrum, range)
             # noise_threshold_local = threshold_scaler(ytrim.max())
 
-            print(f"processing range {i+1:02d}/{len(ranges):02d}\r")
+            print(f"processing range {i+1:02d}/{len(ranges):02d}\n")
             try:
                 parameters, residual_local = d.deconvolve_signal(
                     x=xtrim,

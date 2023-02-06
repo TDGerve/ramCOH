@@ -14,7 +14,7 @@ def deconvolve_signal(
     y,
     min_peak_width=4,
     min_amplitude=1,
-    residuals_threshold=0.9,
+    residuals_threshold=10,
     max_iterations=5,
     baseline0=True,
     noise=None,
@@ -153,7 +153,9 @@ def deconvolve_signal(
         )  # (y - c.sum_GaussLorentz(x, *fitParams)).std()
         residual_vector = abs(y - c.sum_GaussLorentz(x, *fitParams))
         # Stop if noise has reduced less than 10%
-        if (residual_old * residuals_threshold) < residual:
+        residuals_increased = residual > residual_old
+        residuals_improvement = (residual_old - residual) * 100 / residual_old
+        if residuals_increased or (residuals_improvement < residuals_threshold):
             # warnings.warn(f"Noise improved by <{(1 - residuals_threshold):.0%}, using previous result")
             # Revert back to previous fitted values
             fitParams = fitParams_old.copy()
