@@ -63,21 +63,29 @@ class RamanProcessing:
         self.noise: Optional[float] = None
         self.laser = laser
         self._processing = {
-            "baseline_corrected": False,
-            "normalised": False,
-            "smoothed": False,
-            "interpolated": False,
+            "raw": True,
             "interference_corrected": False,
+            "interpolated": False,
         }
         self.birs = None
         self.peaks = []
-        self._spectrumSelect = "raw"
 
     @property
     def processing(self):
         return self._processing
 
-    def smooth(self, smoothType="Gaussian", kernelWidth=9, **kwargs):
+    @property
+    def _spectrumSelect(self):
+        spectra = ("interference_corrected", "interpolated")
+        selection = "raw"
+        for key in spectra:
+            selection = key if self._processing[key] else selection
+        return selection
+
+    def _set_processing(self, spectrum: str, value: bool):
+        self._processing[spectrum] = value
+
+    def smooth(self, smoothType="Gaussian", kernelWidth=9, apply=False, **kwargs):
         """
         Smoothing by either a moving average or with a Gaussian kernel.
         Each application shortens the spectrum by one kernel width
@@ -87,18 +95,20 @@ class RamanProcessing:
         spectrum = self.signal.get(y)
 
         smooth = f.smooth(spectrum, smoothType, kernelWidth)
-        self.signal.add("smooth", smooth)
+
+        if not apply:
+            return smooth
+
+        self.signal.set(self._spectrumSelect, smooth)
 
         # match length of x with length of smoothed signal
         self.x = self.x[(kernelWidth - 1) // 2 : -(kernelWidth - 1) // 2]
         # do the same for any other pre-existing spectra
         for name, value in self.signal.all.items():
-            if name != "smooth":
-                shortened = value[(kernelWidth - 1) // 2 : -(kernelWidth - 1) // 2]
-                self.signal.set(name, shortened)
-
-        self._processing["smoothed"] = True
-        self._spectrumSelect = "smooth"
+            if name == self._spectrumSelect:
+                continue
+            shortened = value[(kernelWidth - 1) // 2 : -(kernelWidth - 1) // 2]
+            self.signal.set(name, shortened)
 
     def baselineCorrect(self, baseline_regions=None, smooth_factor=1, **kwargs):
         """
@@ -115,9 +125,6 @@ class RamanProcessing:
 
         self.birs = baseline_regions
 
-        if "normalised" in self.signal.names:
-            warn("run normalisation again to normalise baseline corrected spectrum")
-
         xbir, ybir = f._extractBIR(self.x, spectrum, baseline_regions)
 
         # max_difference = abs(ybir.max() - ybir.min())
@@ -126,10 +133,9 @@ class RamanProcessing:
         spline = cs.csaps(xbir, ybir, smooth=smooth)
         self.baseline = spline(self.x)
         baseline_corrected = spectrum - self.baseline
+
         self.signal.add("baseline_corrected", baseline_corrected)
         self.signal.add("baseline", self.baseline)
-
-        self._processing["baseline_corrected"] = True
 
     def calculate_noise(self, baseline_regions=None):
 
@@ -144,28 +150,33 @@ class RamanProcessing:
 
         self.noise = ybir.std(axis=None) * 2
 
-    def normalise(self, **kwargs):
+    def normalise(self, apply=False, **kwargs):
 
         y = kwargs.get("y", self._spectrumSelect)
         spectrum = getattr(self.signal, y)
 
         # normalisation to maximum intensity
         normalised = spectrum * 100 / spectrum.max()
-        setattr(self.signal, "normalised", normalised)
-        self._processing["normalised"] = True
-        self._spectrumSelect = "normalised"
+
+        if not apply:
+            return normalised
+
+        self.signal.set(self._spectrumSelect, normalised)
 
     def interpolate(
-        self, *args, interpolate=List[Tuple], smooth_factor=1, add_noise=True, **kwargs
+        self,
+        *args,
+        interpolate=List[Tuple],
+        smooth_factor=1,
+        add_noise=True,
+        output=False,
+        **kwargs,
     ):
-
-        spectrum = self.signal.get("interference_corrected")
-        if spectrum is None:
-            spectrum = self.signal.get("raw")
+        y = kwargs.get("y", self._spectrumSelect)
+        spectrum = self.signal.get(y)
         x = self.x
 
         use = kwargs.get("use", True)
-        output = kwargs.get("output", False)
 
         interpolate_index = f._extractBIR_bool(x, interpolate)
         spectrum_index = ~interpolate_index
@@ -183,26 +194,14 @@ class RamanProcessing:
             )
 
         if use:
-            self.add_interpolation(interpolate_index, interpolated_y)
+            interpolated_spectrum = f.add_interpolation(
+                spectrum, interpolate_index, interpolated_y
+            )
+            self.signal.add("interpolated", interpolated_spectrum)
+            self._processing["interpolated"] = True
 
         if output:
             return interpolated_x, interpolated_y
-
-    def add_interpolation(
-        self, interpolation_indeces: np.ndarray[bool], interpolated_y: np.ndarray
-    ):
-
-        spectrum = self.signal.get("interference_corrected")
-        if spectrum is None:
-            spectrum = self.signal.get("raw")
-
-        interpolated_spectrum = spectrum.copy()
-        interpolated_spectrum[interpolation_indeces] = interpolated_y.values()
-
-        self.signal.add("interpolated", interpolated_spectrum)
-
-        self._spectrumSelect = "interpolated"
-        self._processing["interpolated"] = True
 
     def fitPeaks(self, peak_prominence=3, fit_window=12, curve="GL", **kwargs):
 

@@ -238,3 +238,39 @@ def _calculate_noise(x, y, smooth_factor=1):
     noise = noise_data.std(axis=None) * 2
 
     return noise, spline
+
+
+def _root_interference(
+    scaling: Tuple[float, int],
+    x,
+    interference: npt.NDArray,
+    spectrum: npt.NDArray,
+    interpolated_interval: npt.NDArray,
+    interval: Tuple[float, float],
+):
+
+    scale, shift = scaling
+    x_min, x_max = interval
+    # Trim glass spectra to length
+    spectrum = spectrum[(x > x_min) & (x < x_max)]
+    # Trim, shift and scale olivine spectrum
+    interference_scaled = (
+        interference[(x > (x_min + shift)) & (x < (x_max + shift))] * scale
+    )
+    # Subtract olivine
+    spectrum_corrected = spectrum - interference_scaled
+
+    return [sum(abs(interpolated_interval - spectrum_corrected)), 0]
+
+
+def add_interpolation(
+    self,
+    spectrum: npt.NDArray,
+    interpolation_indeces: npt.NDArray,
+    interpolated_y: npt.NDArray,
+):
+
+    interpolated_spectrum = spectrum.copy()
+    interpolated_spectrum[interpolation_indeces] = interpolated_y.values()
+
+    return interpolated_spectrum
