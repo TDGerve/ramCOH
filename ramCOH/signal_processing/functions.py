@@ -264,13 +264,12 @@ def _root_interference(
 
 
 def add_interpolation(
-    self,
     spectrum: npt.NDArray,
     interpolation_indeces: npt.NDArray,
     interpolated_y: npt.NDArray,
 ):
 
     interpolated_spectrum = spectrum.copy()
-    interpolated_spectrum[interpolation_indeces] = interpolated_y.values()
+    interpolated_spectrum[interpolation_indeces] = interpolated_y.copy()
 
     return interpolated_spectrum

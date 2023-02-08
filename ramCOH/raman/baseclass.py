@@ -54,6 +54,13 @@ class Signal:
     def names(self):
         return self._names
 
+    def remove(self, names):
+        for name in names:
+            if name not in self._names:
+                continue
+            delattr(self, name)
+            self._names.remove(name)
+
 
 class RamanProcessing:
     def __init__(self, x, y, laser=532.18):
@@ -82,8 +89,13 @@ class RamanProcessing:
             selection = key if self._processing[key] else selection
         return selection
 
-    def _set_processing(self, spectrum: str, value: bool):
-        self._processing[spectrum] = value
+    def _set_processing(self, types: List[str], values: List[bool]):
+        for t, val in zip(types, values):
+            try:
+                _ = self._processing.get(t)
+                self._processing[t] = val
+            except KeyError:
+                warn(message=f"key '{t}' not found")
 
     def smooth(self, smoothType="Gaussian", kernelWidth=9, apply=False, **kwargs):
         """
@@ -193,11 +205,11 @@ class RamanProcessing:
                 0, noise, len(interpolated_y)
             )
 
+        interpolated_spectrum = f.add_interpolation(
+            spectrum, interpolate_index, interpolated_y
+        )
+        self.signal.add("interpolated", interpolated_spectrum)
         if use:
-            interpolated_spectrum = f.add_interpolation(
-                spectrum, interpolate_index, interpolated_y
-            )
-            self.signal.add("interpolated", interpolated_spectrum)
             self._processing["interpolated"] = True
 
         if output:
