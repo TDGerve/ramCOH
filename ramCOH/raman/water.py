@@ -113,9 +113,16 @@ class H2O(RamanProcessing):
         bir_boundaries = self.birs.flatten()
 
         Si_left = bir_boundaries[1]
-        Si_right = bir_boundaries[bir_boundaries < 1500][-1]
+        try:
+            Si_right = bir_boundaries[bir_boundaries < 1500][-1]
+        except IndexError:
+            Si_right = 1400
 
-        water_left = bir_boundaries[bir_boundaries > 1500][0]
+        try:
+            water_left = bir_boundaries[bir_boundaries > 1500][0]
+        except IndexError:
+            water_left = 2000
+
         water_right = bir_boundaries[-2]
 
         Si_range = (self.x > Si_left) & (self.x < Si_right)

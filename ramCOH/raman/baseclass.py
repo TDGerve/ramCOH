@@ -182,13 +182,12 @@ class RamanProcessing:
         smooth_factor=1,
         add_noise=True,
         output=False,
+        use=False,
         **kwargs,
     ):
         y = kwargs.get("y", self._spectrumSelect)
         spectrum = self.signal.get(y)
         x = self.x
-
-        use = kwargs.get("use", True)
 
         interpolate_index = f._extractBIR_bool(x, interpolate)
         spectrum_index = ~interpolate_index
@@ -198,18 +197,26 @@ class RamanProcessing:
         )
 
         if add_noise:
-            noise = (spectrum[spectrum_index] - spline(spectrum_index)).std(
-                axis=None
-            ) * 2
-            interpolated_y = interpolated_y + np.random.normal(
-                0, noise, len(interpolated_y)
-            )
+            for section in interpolate:
+                left, right = section
+                window = f._extractBIR_bool(x, [[left, right]])
+                noise_window = (
+                    f._extractBIR_bool(x, [[left - 50, right + 50]]) & ~window
+                )
+                local_noise = (spectrum[noise_window] - spline(x[noise_window])).std(
+                    axis=None
+                )
 
-        interpolated_spectrum = f.add_interpolation(
-            spectrum, interpolate_index, interpolated_y
-        )
-        self.signal.add("interpolated", interpolated_spectrum)
+                mask = (interpolated_x > left) & (interpolated_x < right)
+                interpolated_y[mask] = interpolated_y[mask] + np.random.normal(
+                    0, local_noise, sum(mask)
+                )
+
         if use:
+            interpolated_spectrum = f.add_interpolation(
+                spectrum, interpolate_index, interpolated_y
+            )
+            self.signal.add("interpolated", interpolated_spectrum)
             self._processing["interpolated"] = True
 
         if output:
