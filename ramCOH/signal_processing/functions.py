@@ -266,7 +266,7 @@ def _root_interference(
     return [sum(abs(interpolated_interval - spectrum_corrected)), 0]
 
 
-def _shift_window(filter_array: npt.NDArray[bool], shift: Union[float, int]):
+def _shift_window(filter_array: npt.NDArray[npt.Bool], shift: Union[float, int]):
     shift = int(shift)
     if shift < 0:
         shifted_array = np.concatenate(
