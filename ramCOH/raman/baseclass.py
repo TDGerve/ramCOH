@@ -41,9 +41,7 @@ class Signal:
         return {name: self.get(name) for name in self.names}
 
     def interpolate_spectrum(self, old_x, old_y):
-        interpolate = itp.interp1d(
-            old_x, old_y, bounds_error=False, fill_value="extrapolate"
-        )
+        interpolate = itp.interp1d(old_x, old_y, bounds_error=False, fill_value=0.0)
         return interpolate(self.x)
 
     def set_with_interpolation(self, name, x, y):
@@ -63,7 +61,7 @@ class Signal:
 
 
 class RamanProcessing:
-    def __init__(self, x, y, laser=532.18):
+    def __init__(self, x, y, laser: Optional[float] = None):
         x, y = f.trim_sort(x, y)
         self.x = x
         self.signal = Signal(x, y)

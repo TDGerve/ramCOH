@@ -22,6 +22,8 @@ class H2O(RamanProcessing):
     def longCorrect(self, T_C=23.0, normalisation="area", inplace=True, **kwargs):
 
         laser = kwargs.get("laser", self.laser)
+        if not laser:
+            raise ValueError("laser wavelength not set!")
 
         y = kwargs.get("y", self._spectrumSelect)
         spectrum = self.signal.get(y)

@@ -1,5 +1,5 @@
 from importlib import resources
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 import csaps as cs
 import numpy as np
@@ -252,15 +252,34 @@ def _root_interference(
     scale, shift = scaling
     x_min, x_max = interval
     # Trim glass spectra to length
-    spectrum = spectrum[(x > x_min) & (x < x_max)]
+    filter_array = (x > x_min) & (x < x_max)
+    spectrum = spectrum[filter_array]
     # Trim, shift and scale olivine spectrum
+    shifted_array = _shift_window(filter_array=filter_array, shift=shift)
     interference_scaled = (
-        interference[(x > (x_min + shift)) & (x < (x_max + shift))] * scale
+        interference[shifted_array]
+        * scale  # (x > (x_min + shift)) & (x < (x_max + shift))
     )
     # Subtract olivine
     spectrum_corrected = spectrum - interference_scaled
 
     return [sum(abs(interpolated_interval - spectrum_corrected)), 0]
+
+
+def _shift_window(filter_array: npt.NDArray[bool], shift: Union[float, int]):
+    shift = int(shift)
+    if shift < 0:
+        shifted_array = np.concatenate(
+            [np.repeat(np.array([False]), abs(shift)), filter_array[:-shift]]
+        )
+    elif shift > 0:
+        shifted_array = np.concatenate(
+            [filter_array[shift:], np.repeat(np.array([False]), shift)]
+        )
+    else:
+        return filter_array
+
+    return shifted_array
 
 
 def add_interpolation(
