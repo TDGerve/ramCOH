@@ -141,35 +141,28 @@ def deconvolve_signal(
 
         # R squared adjusted for noise
         R2_noise = (y, c.sum_GaussLorentz(x, *fitParams), noise)
-        # data_mean = y.mean()
-        # residual_vector = y - c.sum_GaussLorentz(x, *fitParams)
-        # residual_sum = sum((residual_vector / noise) ** 2)
-        # sum_squares = sum((y - data_mean) ** 2)
-        # R2_noise = 1 - (residual_sum / sum_squares)
 
         # RSME on the fit
         residual = mean_squared_error(
             y, c.sum_GaussLorentz(x, *fitParams), squared=False
-        )  # (y - c.sum_GaussLorentz(x, *fitParams)).std()
+        )  
         residual_vector = abs(y - c.sum_GaussLorentz(x, *fitParams))
-        # Stop if noise has reduced less than 10%
+        
         residuals_increased = residual > residual_old
         residuals_improvement = (residual_old - residual) * 100 / residual_old
+        # Stop if residuals have increased, or when the residual improvement is below the threshold value
         if residuals_increased or (residuals_improvement < residuals_threshold):
             # warnings.warn(f"Noise improved by <{(1 - residuals_threshold):.0%}, using previous result")
             # Revert back to previous fitted values
             fitParams = fitParams_old.copy()
             residual = residual_old
             break
-        # Stop if noise on the fit is below the set threshold
-        # if residual < (noise * noise_threshold):
-        #     print("noise threshold reached!")
-        #     break
+     
 
         # Add new peak
         peakAmount += 1
         # Get initial guess for new peak
-        # Y at the highest residual, or the set mimumum ampltude, whichever one is higher
+        # Y at the highest residual, or mimumum ampltude, whichever one is higher
         amplitude = np.max(
             (y[residual_vector == residual_vector.max()][0], min_amplitude)
         )

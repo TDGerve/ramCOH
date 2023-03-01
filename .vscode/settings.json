@@ -1,4 +1,7 @@
 {
-    "workbench.colorCustomizations": {"titleBar.activeBackground": "#927e24"}
+    "workbench.colorCustomizations": {
+        "titleBar.activeBackground": "#927e24"
+    },
+    "esbonio.sphinx.confDir": ""
     
 }

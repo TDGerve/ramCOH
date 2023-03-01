@@ -1,3 +1,10 @@
+"""
+===============
+Water
+===============
+The water module provides a Raman processing class for for quantifying water contents of silicate glasses
+"""
+
 from typing import Tuple, Union
 
 import numpy as np
@@ -9,17 +16,97 @@ from .baseclass import RamanProcessing
 
 
 class H2O(RamanProcessing):
-    # Baseline regions
+    """
+    A subclass of :py:class:`~ramCOH.raman.baseclass.RamanProcessing`, extended with methods for quantifying water contents of silicate glasses
+
+    Parameters
+    ----------
+    x   :   array
+        1D array with x-axis data
+    y   :   array of float or int
+        1D array with intensity data
+    **kwargs    :   dict, optional
+            Optional keyword arguments, see Other parameters
+
+    Other parameters
+    ----------------
+    laser   :   float, optional
+        laser wavelength in nm
+
+    Attributes
+    ----------
+    birs_default    :   ndarray
+        (n, 2) shaped array with left and right boundaries of default baseline interpolation regions
+    Si_SNR  : float
+        silicate region signal:noise ratio
+    H2O_SNR :   float
+        water region signal:noise ratio
+    SiH2Oareas  : tuple(float, float)
+        Area underneath peaks in the silicate and water regions
+    
+    """
+    #baseline regions
     birs_default = np.array(
         [[200, 300], [640, 655], [800, 810], [1220, 2300], [3750, 4000]]
     )
 
-    def __init__(self, x, y, **kwargs):
+    def __init__(self, x: npt.NDArray, y: npt.NDArray, **kwargs):
 
         super().__init__(x, y, **kwargs)
         self._processing.update({"long_corrected": False})
 
-    def longCorrect(self, T_C=23.0, normalisation="area", inplace=True, **kwargs):
+        self.H2O_SNR = np.nan
+        self.Si_SNR = np.nan
+
+        self.SiH2Oareas = [np.nan, np.nan]
+
+    def longCorrect(self, T_C=23.0, normalisation=False, inplace=True, **kwargs) -> None:
+        """
+        Long correction of Raman signal intensities
+
+        Correction for temperature and excitation line effects\ [1]_ according to:
+
+        .. math:: 
+            I = I_{obs} * \left\{ \\nu^{3}_{0} \left[ 1 - exp(-hc\\nu/kT) \\right] \\nu / (\\nu_{0} - \\nu)^{4} \\right\}
+
+        where:
+
+        * I = corrected intensity
+        * :math:`I_{obs}` = observed intensity
+        * :math:`\\nu_{0}` = wavenumber of the incident laser (:math:`m^{-1}`)
+        * :math:`\\nu` = measured wavenumber (:math:`m^{-1}`)        
+        * T = temperature in degrees Kelvin
+
+        with constants:
+        
+        * h = Planck constant
+        * k = Boltzmann constant
+        * c = speed of light
+
+        With constant values taken from :py:mod:`scipy:scipy.constants`.        
+        Results are stored in :py:attr:`~ramCOH.raman.baseclass.RamanProcessing.signal`.
+
+        Parameters
+        ----------
+        T_C :   float
+            temperature during analysis in degrees celsius
+        normalisation   :   bool
+            normalise Long corrected spectrum to total area
+        inplace :   bool
+            return Long corrected spectrum when False
+        **kwargs    :   dict, optional
+            Optional keyword arguments, see Other parameters
+
+        Other parameters
+        ----------------
+        y   :   str, Optional
+            name of the spectrum to be treated
+
+
+        References
+        ----------
+        .. [1] Long, D.A. (1977) Raman Spectroscopy, 276 p. MacGraw-Hill, New York.
+        """
 
         laser = kwargs.get("laser", self.laser)
         if not laser:
@@ -28,14 +115,25 @@ class H2O(RamanProcessing):
         y = kwargs.get("y", self._spectrumSelect)
         spectrum = self.signal.get(y)
 
-        long_corrected = f.long_correction(self.x, spectrum, T_C, laser, normalisation)
+        long_corrected = f.long_correction(x=self.x, intensities=spectrum, T_C=T_C, laser=laser, normalisation=normalisation)
         if inplace:
             self.signal.add("long_corrected", long_corrected)
             return
 
         return long_corrected
 
-    def calculate_SNR(self):
+    def calculate_SNR(self) -> None:
+        """
+        Calculate signal to noise ratios for silicate and raman peaks
+
+        Noise is calculated with self.calculate_noise and
+        maxima within the silicate and water regions are used as signals.    
+
+        silicate and water regions are set with :py:meth:`~ramCOH.raman.water.H2O._get_Si_H2O_regions` and
+        results are stored in :py:attr:`~ramCOH.raman.water.H2O.Si_SNR` and :py:attr:`~ramCOH.raman.water.H2O.H2O_SNR`.
+
+        
+        """
 
         if self.noise is None:
             self.calculate_noise()
@@ -49,13 +147,45 @@ class H2O(RamanProcessing):
 
     def subtract_interference(
         self,
-        interference,
+        interference: npt.NDArray,
         interval: Tuple[Union[float, int], Union[float, int]],
-        smoothing,
+        smoothing: float,
         inplace=True,
         use=False,
         **kwargs
-    ):
+    ) -> None:
+        """
+        Subtract interfering signals
+
+        Glass and interfering signal are unmixed by minimising the difference between the unmixed 
+        spectrum and an interpolated, ideal spectrum. Interpolated signal is calculated across *interval* with smoothing splines from :doc:`csaps <csaps:formulation>`, 
+        The interpolation region should be a region with intefering peaks bracketed by unaffected signal.
+
+        Results are stored in :py:attr:`~ramCOH.raman.baseclass.RamanProcessing.signal`.
+
+
+        Parameters
+        ----------
+        interference    :   array
+            intensities of intefering signal, x-axis must match with original spectrum
+        interval    :   tuple of float
+            lower and upper limit of minimisation interval
+        smoothing   :   float
+            smoothing of interpolation across minimisation interval
+        inplace :   bool
+            return unmixed spectrum if False
+        use :   bool
+            set unmixed spectrum as source for further processing
+        **kwargs    :   dict, optional
+            Optional keyword arguments, see Other parameters
+
+        Other parameters
+        ----------------
+        y   :   str, Optional
+            name of the spectrum to be treated
+
+            
+        """
 
         boundary_left, boundary_right = interval
         x = self.x
@@ -93,7 +223,19 @@ class H2O(RamanProcessing):
 
         return spectrum_corrected
 
-    def calculate_SiH2Oareas(self, **kwargs):
+    def calculate_SiH2Oareas(self) -> Tuple[float, float]:
+        """
+        Calculate areas underneath peaks in the silicate and water regions
+        
+        Areas are calculated by trapezoidal integration of regions set by :py:meth:`~ramCOH.raman.water.H2O._get_Si_H2O_regions` 
+        Results are stored in :py:attr:`~ramCOH.raman.water.H2O.SiH2Oareas`.
+        
+        Returns
+        -------
+        float, float
+            silicate region area, water region area
+        
+        """
 
         if "baseline_corrected" not in self.signal.names:
             raise RuntimeError("run baseline correction first")
@@ -110,7 +252,23 @@ class H2O(RamanProcessing):
 
         return self.SiH2Oareas
 
-    def _get_Si_H2O_regions(self):
+    def _get_Si_H2O_regions(self) -> Tuple[Tuple[float, float], Tuple[float, float]]:
+        """Limits of the silicate region are calculated from the upper boundary of the lowest wavenumber 
+        baseline interpolation region (bir) and the last bir boundary < 1500 cm-1.
+
+        Limits of the water region are calculated from the first bir boundary > 1500 cm-1
+        and the lower limit of the highest wavenumber bir.
+
+        If not enough birs are set, the silicate region is set to 200-1400 cm-1 and the water region to 2000-4000 cm-1
+
+        Returns
+        -------
+        Tuple[float, float], Tuple[float, float]
+            silicate region boundaries, water region boundaries
+
+        
+        :meta public:
+        """
 
         bir_boundaries = self.birs.flatten()
 

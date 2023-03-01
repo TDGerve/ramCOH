@@ -69,14 +69,14 @@ def shift_spectrum(spectrum: npt.NDArray, shift: int) -> npt.NDArray:
     return spectrum
 
 
-def smooth(y, smoothType="Gaussian", kernelWidth=9):
+def smooth(y, type="gaussian", kernel_width=9):
     """
     Parameters
     ----------
     y : array-like
         y
     smoothtype : str
-        'movingAverage' or 'Gaussian'
+        'moving_average' or 'gaussian'
     kernelWidth : int
         width of smoothing kernel in elements of y
 
@@ -85,21 +85,24 @@ def smooth(y, smoothType="Gaussian", kernelWidth=9):
     smoothed : array
         y smoothed by a kernel
     """
-    kernelWidth = int(kernelWidth)
+    kernel_width = int(kernel_width)
 
-    if smoothType == "movingAverage":
-        kernel = np.ones((kernelWidth,)) / kernelWidth
-    elif smoothType == "Gaussian":
+    if type not in ("gaussian", "moving_average"):
+        raise ValueError("select smoothtype 'moving_average' or 'gaussian'")
+
+    if type == "moving_average":
+        kernel = np.ones((kernel_width,)) / kernel_width
+    elif type == "gaussian":
         kernel = np.fromiter(
             (
-                c.Gaussian(x, 1, 0, kernelWidth / 3, 0)
-                for x in range(-(kernelWidth - 1) // 2, (kernelWidth + 1) // 2, 1)
+                c.Gaussian(x, 1, 0, kernel_width / 3, 0)
+                for x in range(-(kernel_width - 1) // 2, (kernel_width + 1) // 2, 1)
             ),
             np.float,
         )
         kernel = kernel / sum(kernel)
-    else:
-        ValueError("select smoothtype 'movingAverage' or 'Gaussian'")
+
+        
 
     return np.convolve(y, kernel, mode="valid")
 
@@ -112,14 +115,16 @@ def long_correction(x, intensities, T_C=25.0, laser=532.18, normalisation=True):
 
     Parameters
     ----------
-    spectrum
-        dataframe with wavelengths in column 0 and intensities in column 1
-    T_C
+    x   :   array
+        x-axis in Raman shifts
+    intensities :   array
+        signal intensities
+    T_C :   float
         temperature of aquisition in degrees celsius
-    wavelength
+    laser  :   float
         laser wavelength in nanometers
-    normalisation
-        'area' for normalisation over the total area underneath the spectrum, or False for no normalisation
+    normalisation   :   bool
+        normalise specturm to the total area
     """
     from scipy.constants import c, h, k
 
@@ -148,7 +153,7 @@ def long_correction(x, intensities, T_C=25.0, laser=532.18, normalisation=True):
 
 
 def H2Oraman(rWS, *, intercept, slope):
-    """Calculate water contents using the equation (3) from Le Losq et al. (2012)
+    """Calculate water contents using equation (3) from Le Losq et al. (2012)
 
     equation:
     H2O/(100-H2O) = intercept + slope * rWS

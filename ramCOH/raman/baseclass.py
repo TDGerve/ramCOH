@@ -1,8 +1,16 @@
-from typing import List, Optional, Tuple
+"""
+===============
+Generic classes
+===============
+The baseclass module provides generic classes for processing Raman data and storing spectral data
+"""
+
+from typing import Dict, List, Optional, Tuple
 from warnings import warn
 
 import csaps as cs
 import numpy as np
+import numpy.typing as npt
 import scipy.interpolate as itp
 import scipy.optimize as opt
 
@@ -13,44 +21,85 @@ from ..signal_processing import functions as f
 
 
 class Signal:
-    def __init__(self, x, y):
+    """Container for spectral data
+
+    Parameters
+    ----------
+    x   :   array
+        1D array with x-axis data
+    y   :   array
+        1D array with intensity data
+
+    Attributes
+    ----------
+    x   :   array of float
+        x-axis data
+    raw :   array of float
+        unprocessed intensity data
+    names   :   list of str
+        names of all current spectra
+    all : dict
+        all current spectra as name: values
+    """
+    def __init__(self, x: npt.NDArray, y:npt.NDArray):
         self.x = x
         self.raw = y
         self._names: List[str] = ["raw"]
 
-    def add(self, name, values: np.ndarray):
+    @property
+    def names(self):
+        return self._names
+    
+    @property
+    def all(self) -> Dict:
+        return {name: self.get(name) for name in self.names}
+
+    def add(self, name: str, values: npt.NDArray) -> None:
+        """
+        Add a new spectrum
+        """
         if name in self._names:
             self.set(name, values)
             return
         setattr(self, name, values)
         self._names.append(name)
 
-    def set(self, name, values):
+    def set(self, name, values: npt.NDArray) -> None:
+        """
+        Set the values of a spectrum
+        """
         if name not in self.names:
             raise ValueError(f"{name} not in signals")
         setattr(self, name, values)
 
-    def get(self, name):
+    def get(self, name: str) -> npt.NDArray:
+        """
+        Get the values of a spectrum
+        """
         array = getattr(self, name, None)
         if array is not None:
             array = array.copy()
         return array
+    
 
-    @property
-    def all(self):
-        return {name: self.get(name) for name in self.names}
+    def interpolate_spectrum(self, old_x:npt.NDArray, old_y:npt.NDArray) -> npt.NDArray:
+        """
+        Linear interpolation a spectrum to match its x-axis with :py:attr:`~ramCOH.raman.baseclass.Signal.x`
 
-    def interpolate_spectrum(self, old_x, old_y):
+        """
         interpolate = itp.interp1d(old_x, old_y, bounds_error=False, fill_value=0.0)
         return interpolate(self.x)
 
-    def set_with_interpolation(self, name, x, y):
+    def set_with_interpolation(self, name:str, x:npt.NDArray, y:npt.NDArray) -> None:
+        """
+        Add a new spectrum with interpolated intensities.
+
+        Interpolation is calculated with :py:meth:`~ramCOH.raman.baseclass.Signal.interpolate_spectrum`
+        """
         new_y = self.interpolate_spectrum(x, y)
         self.add(name, new_y)
 
-    @property
-    def names(self):
-        return self._names
+    
 
     def remove(self, names):
         for name in names:
@@ -61,7 +110,39 @@ class Signal:
 
 
 class RamanProcessing:
-    def __init__(self, x, y, laser: Optional[float] = None):
+    """Generic class for processing Raman spectral data
+    
+    Parameters
+    ----------
+    x   :   array
+        1D array with x-axis data
+    y   :   array of float or int
+        1D array with intensity data
+    laser   : float, optional
+        laser wavelenghth in nm
+
+    Attributes
+    ----------
+    x : array
+        1D array with x-axis data
+    signal : Signal
+        container holding all spectral data
+    noise   :   float
+        calculated average noise on the baseline corrected spectrum
+    laser   :   float, Optional
+        laser wavelength in nm
+    processing  :   dict
+        dictionary of bool indicating which data treatments have been applied
+    birs    : ndarray
+        (n, 2) shaped array with left and right boundaries of the last used baseline interpolation regions
+    peaks   :   list of dict
+        list of best-fit parameters of peaks fitted to the spectrum by either deconvolution or simple peak fitting
+    _spectrumSelect :   str
+        default spectrum selected for processing. The selection hierarchy is raw -> interference_corrected -> interpolated, 
+        where the last available spectrum is selected
+        
+    """
+    def __init__(self, x:npt.NDArray, y:npt.NDArray, laser: Optional[float] = None):
         x, y = f.trim_sort(x, y)
         self.x = x
         self.signal = Signal(x, y)
@@ -76,18 +157,18 @@ class RamanProcessing:
         self.peaks = []
 
     @property
-    def processing(self):
+    def processing(self) -> dict:
         return self._processing
 
     @property
-    def _spectrumSelect(self):
+    def _spectrumSelect(self) -> str:
         spectra = ("interference_corrected", "interpolated")
         selection = "raw"
         for key in spectra:
             selection = key if self._processing[key] else selection
         return selection
 
-    def _set_processing(self, types: List[str], values: List[bool]):
+    def _set_processing(self, types: List[str], values: List[bool]) -> None:
         for t, val in zip(types, values):
             try:
                 _ = self._processing.get(t)
@@ -95,37 +176,71 @@ class RamanProcessing:
             except KeyError:
                 warn(message=f"key '{t}' not found")
 
-    def smooth(self, smoothType="Gaussian", kernelWidth=9, apply=False, **kwargs):
+    def smooth(self, type="gaussian", kernel_width=9, inplace=False, **kwargs) -> None:
         """
-        Smoothing by either a moving average or with a Gaussian kernel.
-        Each application shortens the spectrum by one kernel width
+        Smoothing with either a moving average or with a Gaussian kernel.
+        Note that each application shortens the spectrum by one kernel width.
+        Results are stored in :py:attr:`~ramCOH.raman.baseclass.RamanProcessing.signal`.
+
+        Parameters
+        ----------
+        type    :   str
+            Smoothing kernel type: 'gaussian' or 'moving_average'
+        kernel_width    :   int
+            Size of the smoothing kernel in steps along the x-axis
+        inplace   :   bool
+            Return the smoothed array
+        **kwargs    :   dict, optional
+            Optional keyword arguments, see Other parameters
+
+        Other Parameters
+        -------------------
+        y   :   str, Optional
+            name of the spectrum to be treated
+
+        
         """
 
         y = kwargs.get("y", self._spectrumSelect)
         spectrum = self.signal.get(y)
 
-        smooth = f.smooth(spectrum, smoothType, kernelWidth)
+        smooth = f.smooth(y=spectrum, type=type, kernel_width=kernel_width)
 
-        if not apply:
+        if not inplace:
             return smooth
 
         self.signal.set(self._spectrumSelect, smooth)
 
         # match length of x with length of smoothed signal
-        self.x = self.x[(kernelWidth - 1) // 2 : -(kernelWidth - 1) // 2]
+        self.x = self.x[(kernel_width - 1) // 2 : -(kernel_width - 1) // 2]
         # do the same for any other pre-existing spectra
         for name, value in self.signal.all.items():
             if name == self._spectrumSelect:
                 continue
-            shortened = value[(kernelWidth - 1) // 2 : -(kernelWidth - 1) // 2]
+            shortened = value[(kernel_width - 1) // 2 : -(kernel_width - 1) // 2]
             self.signal.set(name, shortened)
 
-    def baselineCorrect(self, baseline_regions=None, smooth_factor=1, **kwargs):
+    def baselineCorrect(self, baseline_regions=None, smooth_factor=1, **kwargs) -> None:
         """
-        Baseline correction with fitted natural smoothing splines from csaps
+        Baseline correction with natural smoothing splines from :doc:`csaps <csaps:formulation>` fitted to interpolation regions.
 
-        birs: n x 2 array for n interpolation regions, where each row is [lower_limit, upper_limit]
-        smooth: smoothing factor in range [0,1]
+        Results are stored in :py:attr:`~ramCOH.raman.baseclass.RamanProcessing.signal`.
+        
+
+        Parameters
+        ----------
+        baseline_regions    :   ndarray
+            (n, 2) array for n interpolation regions, where each row is [lower_limit, upper_limit]
+        smooth_factor: float
+            baseline smoothing factor between 0-1. As the value approaches 0, the baseline becomes linear.
+            It is passed to the smooth parameter of csaps as 1e-6 * smooth_factor
+        **kwargs    :   dict, optional
+            Optional keyword arguments, see Other parameters
+
+        Other Parameters
+        ----------------
+        y   :   str, Optional
+            name of the spectrum to be treated
         """
         y = kwargs.get("y", self._spectrumSelect)
         spectrum = self.signal.get(y)
@@ -147,7 +262,21 @@ class RamanProcessing:
         self.signal.add("baseline_corrected", baseline_corrected)
         self.signal.add("baseline", self.baseline)
 
-    def calculate_noise(self, baseline_regions=None):
+    def calculate_noise(self, baseline_regions: Optional[npt.NDArray]=None) -> None:
+
+        """
+        Calculate noise on a baseline corrected spectrum.
+
+        Noise is calculated within baseline interpolation regions as 
+        2 standard deviations on the baseline corrected spectrum.
+
+        Results are stored in :py:attr:`~ramCOH.raman.baseclass.RamanProcessing.noise`
+
+        Other parameters
+        ----------------
+        baseline_regions    : ndarray
+            (n, 2) shapped array with regions where noise will be calculated. If not set, the last set baseline interpolation regions will be used.
+        """
 
         baseline_corrected = self.signal.get("baseline_corrected")
         if baseline_corrected is None:
@@ -160,7 +289,24 @@ class RamanProcessing:
 
         self.noise = ybir.std(axis=None) * 2
 
-    def normalise(self, apply=False, **kwargs):
+    def normalise(self, inplace=True, **kwargs) -> None:
+        """
+        Normalise spectrum to maximum intensity.
+
+        Results are stored in :py:attr:`~ramCOH.raman.baseclass.RamanProcessing.signal`
+        
+        Parameters
+        ----------
+        inplace :   bool
+            set normalised spectrum inplace
+        **kwargs    :   dict, optional
+            Optional keyword arguments, see Other parameters
+
+        Other Parameters
+        ----------------
+        y   :   str, Optional
+            name of the spectrum to be treated
+        """
 
         y = kwargs.get("y", self._spectrumSelect)
         spectrum = getattr(self.signal, y)
@@ -168,21 +314,48 @@ class RamanProcessing:
         # normalisation to maximum intensity
         normalised = spectrum * 100 / spectrum.max()
 
-        if not apply:
+        if not inplace:
             return normalised
 
         self.signal.set(self._spectrumSelect, normalised)
 
     def interpolate(
         self,
-        *args,
-        interpolate=List[Tuple],
+        interpolate=List[Tuple[float, float]],
         smooth_factor=1,
         add_noise=True,
         output=False,
         use=False,
         **kwargs,
-    ):
+    ) -> None:
+        """
+        Interpolate across one or more regions
+
+        Interpolated signal is calculated with smoothing splines from :doc:`csaps <csaps:formulation>`.
+
+        Results are stored in :py:attr:`~ramCOH.raman.baseclass.RamanProcessing.signal`
+
+        Parameters
+        ----------
+        interpolate :   list of lists
+            list of interpolation regions in pairs of [upper limit, lower limits]
+        smooth_factor   :   float
+            Smoothes the interpolation; as it approaches 0 the interpolation becomes linear. 
+            Passed on to the smooth parameter in csaps as smooth_factor * 1e-5
+        add_noise   :   bool
+            add spectrum noise to the interpolated sections
+        output  :   bool
+            return interpolated sections as as tuple(x, y)
+        use :   bool
+            set interpolated spectrum as source for further processing
+        **kwargs    :   dict, optional
+            Optional keyword arguments, see Other parameters
+
+        Other Parameters
+        ----------------
+        y   :   str, Optional
+            name of the spectrum to be treated
+        """
         y = kwargs.get("y", self._spectrumSelect)
         spectrum = self.signal.get(y)
         x = self.x
@@ -220,7 +393,39 @@ class RamanProcessing:
         if output:
             return interpolated_x, interpolated_y
 
-    def fitPeaks(self, peak_prominence=3, fit_window=12, curve="GL", **kwargs):
+    def fitPeaks(self, peak_prominence=3, fit_window=12, curve="GL", **kwargs) -> None:
+        """
+        Find the best fit curves for peaks in the spectrum.
+
+        Does not take into account peak overlap, 
+        use :py:meth:`~ramCOH.raman.baseclass.RamanProcessing.deconvolve` instead if you expect overlapping peaks.
+        Initial guesses for peak centers, amplitudes and widths are made with :py:func:`scipy:scipy.signal.find_peaks`
+
+        Results are stored in :py:attr:`~ramCOH.raman.baseclass.RamanProcessing.peaks`
+
+        
+
+        Parameters
+        ----------
+        peak_prominence : float, int
+            minimum peak prominence of fitted peaks, passed to :py:func:`find_peaks`
+        fit_window  :   int
+            Intervals across which peaks are fitted range from (peak center - (fit_window * half width)) to (peak center + (fit_window * half width))
+        curve   :   str
+            curve shape. Options are:
+
+            * 'GL' for mixed Gaussian-Lorentzian/pseudo-Voigt (default), 
+            * 'G' for Gaussian and
+            * 'L' for Lorentzian
+        **kwargs    :   dict, optional
+            Optional keyword arguments, see Other parameters
+
+        Other Parameters
+        ----------------
+        y   :   str, Optional
+            name of the spectrum to be treated
+
+        """
 
         y = kwargs.get("y", self._spectrumSelect)
         spectrum = self.signal.get(y)
@@ -245,11 +450,7 @@ class RamanProcessing:
         ):
             x_range = cf._get_peakFit_ranges(center, width, fit_window)
             xtrim, ytrim = cf._trimxy_ranges(self.x, spectrum, x_range)
-            # trimBool = (self.x > (centers[i] - widths[i] * fit_window)) & (
-            #     self.x < (centers[i] + widths[i] * fit_window)
-            # )
-            # xTrim = self.x[trimBool]
-            # intensityTrim = spectrum[trimBool]
+
 
             init_values = [amplitude, center, width, baselevel]
             bounds = (-np.inf, np.inf)
@@ -286,6 +487,8 @@ class RamanProcessing:
         max_iterations=5,
         **kwargs,
     ):
+        """
+        Deconvolve the spectrum into its constituent peaks"""
 
         y = kwargs.get("y", self._spectrumSelect)
         spectrum = self.signal.get(y)
