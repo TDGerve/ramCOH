@@ -6,5 +6,6 @@ Library for processing and peak fitting of Raman spectra, targeted at CO<sub>2</
 Code documentation is available at [ramcoh.readthedocs.io](https://ramcoh.readthedocs.io/en/latest)
 
 ## Installation
+ramCOH can be installed with pip by running `pip install ramCOH` in a terminal.
 
 
