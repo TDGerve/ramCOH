@@ -12,7 +12,7 @@ authors = [
     {name = "Thomas van Gerve"},
 ]
 description = "Library for processing and peak fitting of Raman spectra, targeted at CO2 fluids and hydrous silicate glasses"
-readme = "README.rst"
+readme = "README.md"
 requires-python = ">=3.8"
 license = { file = "LICENSE" }
 classifiers = [
@@ -30,3 +30,7 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://github.com/TDGerve/ramCOH"
+
+
+[tool.setuptools.package-data]
+"ramCOH.static" = ["*.csv"]
