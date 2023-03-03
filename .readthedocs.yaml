@@ -28,5 +28,3 @@ sphinx:
 python:
    install:
    - requirements: requirements.txt
-
-
