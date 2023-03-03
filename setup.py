@@ -6,7 +6,7 @@ setuptools.setup(
     description="Library for processing and peak fitting of Raman spectra, targeted at CO2 fluids and hydrous silicate glasses",
     author="Thomas van Gerve",
     url="https://github.com/TDGerve/ramCOH",
-    packages=setuptools.find_packages(where=["src/"]),
+    packages=setuptools.find_packages(where=["ramCOH/"]),
     package_data={"ramCOH": ["static/*"]},
     install_requires=[
         "pandas",
