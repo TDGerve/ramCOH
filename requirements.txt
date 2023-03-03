@@ -1,5 +1,0 @@
-numpy
-csaps
-scipy
-sklearn
-pandas
