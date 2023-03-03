@@ -5,7 +5,7 @@ with open("README.md", "r") as f:
 
 setuptools.setup(
     name="ramCOH",
-    version="1.0",
+    version="1.1",
     description="Library for processing and peak fitting of Raman spectra, targeted at CO2 fluids and hydrous silicate glasses",
     author="Thomas van Gerve",
     url="https://github.com/TDGerve/ramCOH",
@@ -18,6 +18,7 @@ setuptools.setup(
         "matplotlib",
         "numpy",
         "scipy",
+        "scikit-learn",
         "csaps",
     ],
     classifiers=[
