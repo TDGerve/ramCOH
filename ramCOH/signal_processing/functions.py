@@ -1,5 +1,5 @@
 from importlib import resources
-from typing import List, Tuple, Union
+from typing import Tuple, Union
 
 import csaps as cs
 import numpy as np
@@ -101,8 +101,6 @@ def smooth(y, type="gaussian", kernel_width=9):
             np.float,
         )
         kernel = kernel / sum(kernel)
-
-        
 
     return np.convolve(y, kernel, mode="valid")
 
