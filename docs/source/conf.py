@@ -14,14 +14,22 @@ release = "1.0"
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = ["myst_parser", "sphinx.ext.autodoc", "sphinx.ext.napoleon", "sphinx.ext.intersphinx", "nbsphinx"]
+extensions = [
+    "myst_parser",
+    "sphinx.ext.autodoc",
+    "sphinx.ext.napoleon",
+    "sphinx.ext.viewcode",
+    "sphinx.ext.intersphinx",
+    "nbsphinx",
+]
 
 templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 intersphinx_mapping = {
-    "csaps": ("https://csaps.readthedocs.io/en/v1.1.0", None),
-    "scipy": ("https://docs.scipy.org/doc/scipy/reference", None)
+    "csaps": ("https://csaps.readthedocs.io/en/latest/", None),
+    "scipy": ("https://docs.scipy.org/doc/scipy/reference", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
 }
 intersphinx_disabled_reftypes = ["*"]
 

@@ -182,11 +182,15 @@ def _find_peak_parameters(x, y, prominence, **kwargs):
     """
 
     peak_positions, props = signal.find_peaks(y, prominence=prominence, **kwargs)
-    prominence_data = tuple(props[key] for key in ("prominences", "left_bases", "right_bases"))
+    prominence_data = tuple(
+        props[key] for key in ("prominences", "left_bases", "right_bases")
+    )
 
     amplitudes, centers = y[peak_positions], x[peak_positions]
     # full width half maximum in x
-    widths = signal.peak_widths(y, peak_positions, rel_height=0.5, prominence_data=prominence_data)[0] * abs(np.diff(x).mean())
+    widths = signal.peak_widths(
+        y, peak_positions, rel_height=0.5, prominence_data=prominence_data
+    )[0] * abs(np.diff(x).mean())
 
     sort = np.argsort(centers)
 
@@ -195,6 +199,7 @@ def _find_peak_parameters(x, y, prominence, **kwargs):
     widths = widths[sort]
 
     return amplitudes, centers, widths
+
 
 def diad(x, y, peak_prominence=40, fit_window=8, curve="GL"):
     """
@@ -259,19 +264,17 @@ def diad(x, y, peak_prominence=40, fit_window=8, curve="GL"):
         if curve == "GL":
             init_values = np.append(init_values, shape)
 
-        x_fit, y_fit = _trim_peakFit_ranges(
-            x, y, center, width, fit_window=fit_window
-        )
+        x_fit, y_fit = _trim_peakFit_ranges(x, y, center, width, fit_window=fit_window)
 
         params = opt.least_squares(
             fun=residuals, x0=init_values, bounds=bounds, args=(x_fit, y_fit)
         ).x
         fit_params.append(params)
-        fit_x.append(x_fit)
+        # fit_x.append(x_fit)
 
     # Unpack output data
     fit_params1, fit_params2 = fit_params
-    x1, x2 = fit_x
+    # x1, x2 = fit_x
 
     # Tidy data
     labels = ["amplitude", "center", "width", "baselevel"]
@@ -279,9 +282,9 @@ def diad(x, y, peak_prominence=40, fit_window=8, curve="GL"):
         labels.append("shape")
 
     fit_params1 = {labels[i]: j for i, j in enumerate(fit_params1)}
-    fit_params1["x"] = x1
+    # fit_params1["x"] = x1
 
     fit_params2 = {labels[i]: j for i, j in enumerate(fit_params2)}
-    fit_params2["x"] = x2
+    # fit_params2["x"] = x2
 
     return fit_params1, fit_params2

@@ -34,7 +34,7 @@ def deconvolve_signal(
         minium amplitude of fitted peaks as a factor of noise on y.
     baseline0 : bool
         fix baselevel of fitted curves to 0
-    noise : float, int (optional)
+    noise : float, int
         Absolute noise on y
     max_iterations : int
         maximum loop iterations. One new curve is added each loop
@@ -50,8 +50,8 @@ def deconvolve_signal(
     """
 
     # Calculate noise on the total signal
-    if noise is None:
-        noise, _ = f._calculate_noise(x=x, y=y)
+    # if noise is None:
+    #     noise, _ = f._calculate_noise(x=x, y=y)
 
     # Set peak prominence to x times noise levels
     # prominence = ((noise * (min_amplitude-1)) / y.max()) * 100
@@ -68,7 +68,7 @@ def deconvolve_signal(
 
     # Initial guesses for peak parameters
     amplitudes, centers, widths = cf._find_peak_parameters(
-        x, y, prominence, height=noise, width=3 / resolution
+        x, y, prominence, height=noise, width=min_peak_width
     )
     # Remove initial guesses that are too narrow or too low amplitude
     keep = np.where((widths > min_width) & (amplitudes > min_amplitude))
@@ -145,9 +145,9 @@ def deconvolve_signal(
         # RSME on the fit
         residual = mean_squared_error(
             y, c.sum_GaussLorentz(x, *fitParams), squared=False
-        )  
+        )
         residual_vector = abs(y - c.sum_GaussLorentz(x, *fitParams))
-        
+
         residuals_increased = residual > residual_old
         residuals_improvement = (residual_old - residual) * 100 / residual_old
         # Stop if residuals have increased, or when the residual improvement is below the threshold value
@@ -157,7 +157,6 @@ def deconvolve_signal(
             fitParams = fitParams_old.copy()
             residual = residual_old
             break
-     
 
         # Add new peak
         peakAmount += 1
