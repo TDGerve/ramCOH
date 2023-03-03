@@ -13,8 +13,8 @@ ramCOH quickstart
 
    about
    getting_started
-   tutorials
    code_documentation
+   tutorials
    support
    license
 
