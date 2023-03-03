@@ -14,10 +14,10 @@ import numpy.typing as npt
 import scipy.interpolate as itp
 import scipy.optimize as opt
 
-from ..signal_processing import curve_fitting as cf
-from ..signal_processing import curves as c
-from ..signal_processing import deconvolution as d
-from ..signal_processing import functions as f
+from ramCOH.signal_processing import curve_fitting as cf
+from ramCOH.signal_processing import curves as c
+from ramCOH.signal_processing import deconvolution as d
+from ramCOH.signal_processing import functions as f
 
 arrayNx2 = Annotated[npt.NDArray, Literal["N", 2]]
 

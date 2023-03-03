@@ -6,7 +6,7 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
-from . import curves as c
+import ramCOH.signal_processing.curves as c
 
 
 def wavelengthToShift(wavelength, laser=532.18):

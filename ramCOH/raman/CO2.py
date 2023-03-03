@@ -9,10 +9,9 @@ from typing import Dict, Optional, Tuple
 import numpy as np
 import numpy.typing as npt
 
-from ..signal_processing import curve_fitting as cf
-from ..signal_processing import curves as c
-from .baseclass import RamanProcessing
-from .baseline_regions import default_birs
+from ramCOH.raman.baseclass import RamanProcessing
+from ramCOH.raman.baseline_regions import default_birs
+from ramCOH.signal_processing import curves as c
 
 
 class CO2(RamanProcessing):

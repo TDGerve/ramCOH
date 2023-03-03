@@ -1,1 +1,1 @@
-from .raman import *
+from ramCOH.raman import *

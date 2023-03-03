@@ -11,9 +11,9 @@ import numpy as np
 import numpy.typing as npt
 import scipy.optimize as opt
 
-from ..signal_processing import functions as f
-from .baseclass import RamanProcessing
-from .baseline_regions import default_birs
+from ramCOH.raman.baseclass import RamanProcessing
+from ramCOH.raman.baseline_regions import default_birs
+from ramCOH.signal_processing import functions as f
 
 
 class Glass(RamanProcessing):

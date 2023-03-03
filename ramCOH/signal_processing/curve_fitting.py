@@ -5,7 +5,7 @@ import numpy as np
 import scipy.optimize as opt
 from scipy import signal
 
-import .curves as c
+import ramCOH.signal_processing.curves as c
 
 
 def _merge_overlapping_ranges(ranges):
