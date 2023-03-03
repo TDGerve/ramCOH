@@ -6,8 +6,7 @@ About
 
 How to cite ramCOH
 ------------------------------
-Please reference the paper XXX published in Journal of Petrology ff you have used ramCOH to process CO\ :sub:`2`\ Raman spectra.
-If you have used ramCOH to process glass spectra, please reference the paper XXX published in XXX. In both cases, mention the ramCOH release version.
+If you want to use ramCOH in your research, please keep an eye on the page for the right publication to reference.
 
 
 
