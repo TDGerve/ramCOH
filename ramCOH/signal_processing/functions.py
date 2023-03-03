@@ -1,7 +1,11 @@
-import pandas as pd
-import numpy as np
 from importlib import resources
+from typing import List, Tuple, Union
+
 import csaps as cs
+import numpy as np
+import numpy.typing as npt
+import pandas as pd
+
 from . import curves as c
 
 
@@ -53,14 +57,26 @@ def trim_sort(x, y, cutoff=0):
     return x_sort[x > cutoff], y_sort[x > cutoff]
 
 
-def smooth(y, smoothType="Gaussian", kernelWidth=9):
+def shift_spectrum(spectrum: npt.NDArray, shift: int) -> npt.NDArray:
+    if shift == 0:
+        return spectrum
+
+    if shift > 0:
+        spectrum = np.concatenate([spectrum[shift:], [0] * shift])
+    if shift < 0:
+        spectrum = np.concatenate([[0] * abs(shift), spectrum[:shift]])
+
+    return spectrum
+
+
+def smooth(y, type="gaussian", kernel_width=9):
     """
     Parameters
     ----------
     y : array-like
         y
     smoothtype : str
-        'movingAverage' or 'Gaussian'
+        'moving_average' or 'gaussian'
     kernelWidth : int
         width of smoothing kernel in elements of y
 
@@ -69,21 +85,24 @@ def smooth(y, smoothType="Gaussian", kernelWidth=9):
     smoothed : array
         y smoothed by a kernel
     """
-    kernelWidth = int(kernelWidth)
+    kernel_width = int(kernel_width)
 
-    if smoothType == "movingAverage":
-        kernel = np.ones((kernelWidth,)) / kernelWidth
-    elif smoothType == "Gaussian":
+    if type not in ("gaussian", "moving_average"):
+        raise ValueError("select smoothtype 'moving_average' or 'gaussian'")
+
+    if type == "moving_average":
+        kernel = np.ones((kernel_width,)) / kernel_width
+    elif type == "gaussian":
         kernel = np.fromiter(
             (
-                c.Gaussian(x, 1, 0, kernelWidth / 3, 0)
-                for x in range(-(kernelWidth - 1) // 2, (kernelWidth + 1) // 2, 1)
+                c.Gaussian(x, 1, 0, kernel_width / 3, 0)
+                for x in range(-(kernel_width - 1) // 2, (kernel_width + 1) // 2, 1)
             ),
             np.float,
         )
         kernel = kernel / sum(kernel)
-    else:
-        ValueError("select smoothtype 'movingAverage' or 'Gaussian'")
+
+        
 
     return np.convolve(y, kernel, mode="valid")
 
@@ -96,14 +115,16 @@ def long_correction(x, intensities, T_C=25.0, laser=532.18, normalisation=True):
 
     Parameters
     ----------
-    spectrum
-        dataframe with wavelengths in column 0 and intensities in column 1
-    T_C
+    x   :   array
+        x-axis in Raman shifts
+    intensities :   array
+        signal intensities
+    T_C :   float
         temperature of aquisition in degrees celsius
-    wavelength
+    laser  :   float
         laser wavelength in nanometers
-    normalisation
-        'area' for normalisation over the total area underneath the spectrum, or False for no normalisation
+    normalisation   :   bool
+        normalise specturm to the total area
     """
     from scipy.constants import c, h, k
 
@@ -132,7 +153,7 @@ def long_correction(x, intensities, T_C=25.0, laser=532.18, normalisation=True):
 
 
 def H2Oraman(rWS, *, intercept, slope):
-    """Calculate water contents using the equation (3) from Le Losq et al. (2012)
+    """Calculate water contents using equation (3) from Le Losq et al. (2012)
 
     equation:
     H2O/(100-H2O) = intercept + slope * rWS
@@ -145,7 +166,7 @@ def H2Oraman(rWS, *, intercept, slope):
     return (100 * (intercept + slope * rWS)) / (1 + intercept + slope * rWS)
 
 
-def _extractBIR(x, y, birs):
+def _extractBIR_bool(x, birs):
     """Extract baseline interpolation regions (birs) from a spectrum
 
     Parameters
@@ -168,7 +189,29 @@ def _extractBIR(x, y, birs):
     for bir in birs[1:]:
         selection = selection | ((x > bir[0]) & (x < bir[1]))
 
+    return selection
+
+
+def _extractBIR(x, y, birs):
+
+    selection = _extractBIR_bool(x, birs)
+
     return x[selection], y[selection]
+
+
+def _interpolate_section(x, y, interpolate, smooth_factor):
+
+    smooth = smooth_factor * 1e-5
+
+    interpolate_index = _extractBIR_bool(x, interpolate)
+    spectrum_index = ~interpolate_index
+
+    spline = cs.csaps(x[spectrum_index], y[spectrum_index], smooth=smooth)
+
+    interpolated_x = x[interpolate_index]
+    interpolated_y = spline(interpolated_x)
+
+    return interpolated_x, interpolated_y, spline
 
 
 def _calculate_noise(x, y, smooth_factor=1):
@@ -197,6 +240,60 @@ def _calculate_noise(x, y, smooth_factor=1):
     spline = cs.csaps(x, y, smooth=smooth)
     # Standard deviation on the residuals of y and spline
     noise_data = y - spline(x)
-    noise = noise_data.std(axis=None)
+    noise = noise_data.std(axis=None) * 2
 
     return noise, spline
+
+
+def _root_interference(
+    scaling: Tuple[float, int],
+    x,
+    interference: npt.NDArray,
+    spectrum: npt.NDArray,
+    interpolated_interval: npt.NDArray,
+    interval: Tuple[float, float],
+):
+
+    scale, shift = scaling
+    x_min, x_max = interval
+    # Trim glass spectra to length
+    filter_array = (x > x_min) & (x < x_max)
+    spectrum = spectrum[filter_array]
+    # Trim, shift and scale olivine spectrum
+    shifted_array = _shift_window(filter_array=filter_array, shift=shift)
+    interference_scaled = (
+        interference[shifted_array]
+        * scale  # (x > (x_min + shift)) & (x < (x_max + shift))
+    )
+    # Subtract olivine
+    spectrum_corrected = spectrum - interference_scaled
+
+    return [sum(abs(interpolated_interval - spectrum_corrected)), 0]
+
+
+def _shift_window(filter_array: npt.NDArray[np.bool_], shift: Union[float, int]):
+    shift = int(shift)
+    if shift < 0:
+        shifted_array = np.concatenate(
+            [np.repeat(np.array([False]), abs(shift)), filter_array[:-shift]]
+        )
+    elif shift > 0:
+        shifted_array = np.concatenate(
+            [filter_array[shift:], np.repeat(np.array([False]), shift)]
+        )
+    else:
+        return filter_array
+
+    return shifted_array
+
+
+def add_interpolation(
+    spectrum: npt.NDArray,
+    interpolation_indeces: npt.NDArray,
+    interpolated_y: npt.NDArray,
+):
+
+    interpolated_spectrum = spectrum.copy()
+    interpolated_spectrum[interpolation_indeces] = interpolated_y.copy()
+
+    return interpolated_spectrum

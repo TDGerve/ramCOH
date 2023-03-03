@@ -1,19 +1,23 @@
-import numpy as np
 import warnings
+
+import numpy as np
 import scipy.optimize as opt
-from . import functions as f
+from sklearn.metrics import mean_squared_error
+
 from . import curve_fitting as cf
 from . import curves as c
+from . import functions as f
+
 
 def deconvolve_signal(
     x,
     y,
-    noise_threshold,
-    min_peak_width,
-    min_amplitude,
+    min_peak_width=4,
+    min_amplitude=1,
+    residuals_threshold=10,
+    max_iterations=5,
     baseline0=True,
     noise=None,
-    max_iterations=5,
 ):
     """
     Parameters
@@ -30,7 +34,7 @@ def deconvolve_signal(
         minium amplitude of fitted peaks as a factor of noise on y.
     baseline0 : bool
         fix baselevel of fitted curves to 0
-    noise : float, int (optional)
+    noise : float, int
         Absolute noise on y
     max_iterations : int
         maximum loop iterations. One new curve is added each loop
@@ -46,23 +50,26 @@ def deconvolve_signal(
     """
 
     # Calculate noise on the total signal
-    if noise is None:
-        noise, _ = f._calculate_noise(x=x, y=y)
+    # if noise is None:
+    #     noise, _ = f._calculate_noise(x=x, y=y)
 
     # Set peak prominence to x times noise levels
-    prominence = ((noise * min_amplitude) / y.max()) * 100
+    # prominence = ((noise * (min_amplitude-1)) / y.max()) * 100
 
     # Boundary conditions
     resolution = abs(np.diff(x).mean())
-    min_width = min_peak_width * resolution
+    min_width = resolution * min_peak_width  # min_peak_width at FWHM
     min_amplitude = noise * min_amplitude
+    prominence = min_amplitude + (noise / 2)
     xlength = x.max() - x.min()
     # Left and right limits for: center, amplitude, width, shape and baselevel
     leftBoundSimple = [x.min(), min_amplitude, min_width, 0.0, -5]
     rightBoundSimple = [x.max(), y.max() * 1.5, xlength, 1.0, y.max()]
 
     # Initial guesses for peak parameters
-    amplitudes, centers, widths = cf._find_peak_parameters(x, y, prominence)
+    amplitudes, centers, widths = cf._find_peak_parameters(
+        x, y, prominence, height=noise, width=min_peak_width
+    )
     # Remove initial guesses that are too narrow or too low amplitude
     keep = np.where((widths > min_width) & (amplitudes > min_amplitude))
     amplitudes = amplitudes[keep]
@@ -97,22 +104,23 @@ def deconvolve_signal(
 
         return c.sum_GaussLorentz(x, *values)
 
-    # Noise on ititial fit, used in the main loop to check if the fit has improved each iteration.
-    fit_noise_old = (y - sumGaussLorentz_reshaped(x, initvalues, peakAmount)).std()
+    # Residual on ititial fit
+    residual_old = mean_squared_error(
+        y, sumGaussLorentz_reshaped(x, initvalues, peakAmount), squared=False
+    )  # (y - sumGaussLorentz_reshaped(x, initvalues, peakAmount)).std()
     # Save the initial values in case the first iteration doesn't give an imporovement
     fitParams_old = initvalues.reshape((parameters, peakAmount))
     if baseline0:
         fitParams_old = np.vstack((fitParams_old, np.array([0.0] * peakAmount)))
 
     # Cost function to minimise
-    residuals = (
+    calculate_residuals = (
         lambda params, x, y, peakAmount: sumGaussLorentz_reshaped(x, params, peakAmount)
         - y
     )
 
     # Flags for stopping the while loop
-    iterations = 0
-    while True:
+    for _ in range(int(max_iterations)):
 
         # Set up bounds
         leftBound = np.repeat(leftBoundSimple, peakAmount)
@@ -120,7 +128,7 @@ def deconvolve_signal(
         bounds = (leftBound, rightBound)
         # Optimise fit parameters
         LSfit = opt.least_squares(
-            residuals,
+            calculate_residuals,
             x0=initvalues,
             bounds=bounds,
             args=(x, y, peakAmount),
@@ -132,36 +140,32 @@ def deconvolve_signal(
             fitParams = np.vstack((fitParams, np.array([0.0] * peakAmount)))
 
         # R squared adjusted for noise
-        data_mean = y.mean()
-        residue = y - c.sum_GaussLorentz(x, *fitParams)
-        residual_sum = sum((residue / noise) ** 2)
-        sum_squares = sum((y - data_mean) ** 2)
-        R2_noise = 1 - (residual_sum / sum_squares)
+        R2_noise = (y, c.sum_GaussLorentz(x, *fitParams), noise)
 
-        # Residual noise on the fit, as standard deviation on the residuals
-        fit_noise = (y - c.sum_GaussLorentz(x, *fitParams)).std()
+        # RSME on the fit
+        residual = mean_squared_error(
+            y, c.sum_GaussLorentz(x, *fitParams), squared=False
+        )
+        residual_vector = abs(y - c.sum_GaussLorentz(x, *fitParams))
 
-        iterations += 1
-        # Stop is max iterations have been reached
-        if iterations >= max_iterations:
-            warnings.warn(f"max iterations reached: {max_iterations}")
-            break
-        # Stop if noise has reduced less than 10%
-        if (fit_noise_old * 0.90) < fit_noise:
-            warnings.warn("Noise improved by <10%, using previous result")
+        residuals_increased = residual > residual_old
+        residuals_improvement = (residual_old - residual) * 100 / residual_old
+        # Stop if residuals have increased, or when the residual improvement is below the threshold value
+        if residuals_increased or (residuals_improvement < residuals_threshold):
+            # warnings.warn(f"Noise improved by <{(1 - residuals_threshold):.0%}, using previous result")
             # Revert back to previous fitted values
             fitParams = fitParams_old.copy()
-            break
-        # Stop if noise on the fit is below the set threshold
-        if fit_noise < (noise * noise_threshold):
+            residual = residual_old
             break
 
         # Add new peak
         peakAmount += 1
         # Get initial guess for new peak
-        # Y at the highest residual, or the set mimumum ampltude, whichever one is higher
-        amplitude = np.max((y[residue == residue.max()][0], min_amplitude))
-        center = x[residue == residue.max()][0]
+        # Y at the highest residual, or mimumum ampltude, whichever one is higher
+        amplitude = np.max(
+            (y[residual_vector == residual_vector.max()][0], min_amplitude)
+        )
+        center = x[residual_vector == residual_vector.max()][0]
         width = np.max((widths.mean(), min_width))
 
         amplitudes = np.append(amplitudes, amplitude)
@@ -176,6 +180,15 @@ def deconvolve_signal(
             initvalues = initvalues[:-peakAmount]
         # Save old noise and fitted parameters for comparison in next iteration.
         fitParams_old = fitParams.copy()
-        fit_noise_old = fit_noise.copy()
+        residual_old = residual.copy()
 
-    return fitParams, R2_noise, fit_noise
+    return fitParams, residual
+
+
+def _R2_noise(y, y_predict, noise):
+    data_mean = y.mean()
+    residual_vector = y - y_predict
+    residual_sum = sum((residual_vector / noise) ** 2)
+    sum_squares = sum((y - data_mean) ** 2)
+    R2_noise = 1 - (residual_sum / sum_squares)
+    return R2_noise
