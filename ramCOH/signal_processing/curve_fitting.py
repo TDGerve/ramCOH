@@ -1,11 +1,11 @@
 import warnings
 
-import csaps as cs
+# import csaps as cs
 import numpy as np
 import scipy.optimize as opt
 from scipy import signal
 
-from . import curves as c
+import .curves as c
 
 
 def _merge_overlapping_ranges(ranges):

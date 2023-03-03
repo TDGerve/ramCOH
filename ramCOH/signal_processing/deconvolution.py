@@ -4,9 +4,9 @@ import numpy as np
 import scipy.optimize as opt
 from sklearn.metrics import mean_squared_error
 
-from . import curve_fitting as cf
-from . import curves as c
-from . import functions as f
+import .curve_fitting as cf
+import .curves as c
+import .functions as f
 
 
 def deconvolve_signal(
