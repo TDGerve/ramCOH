@@ -23,3 +23,7 @@ Modules
 
 .. automodule:: ramCOH.signal_processing.curves
     :members:
+
+.. automodule:: ramCOH.signal_processing.deconvolution
+    :members:
+
