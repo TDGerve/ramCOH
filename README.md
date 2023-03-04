@@ -16,6 +16,6 @@ If you would like to install from a specific branch or release instead run
 
     pip install git+https://github.com/TDGerve/ramCOH.git@tag
 
-where *tag* should be repleaced by the release tag or branch name (e.g. *1.0* or *development*)
+where *tag* should be repleaced by the release tag or branch name (e.g. *v1.0* or *development*)
 
 
