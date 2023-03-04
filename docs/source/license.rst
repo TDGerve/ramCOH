@@ -1,5 +1,5 @@
 =======
-Licence
+MIT Licence
 =======
 
 Copyright (c) 2023 Thomas van Gerve.
