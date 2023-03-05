@@ -12,7 +12,7 @@ ramCOH can be installed with pip by running
 
 in a terminal.
 
-If you would like to install from a specific branch or release instead run
+If you would like to install from a specific git branch or release instead run
 
     pip install git+https://github.com/TDGerve/ramCOH.git@tag
 
