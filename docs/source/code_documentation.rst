@@ -2,7 +2,7 @@
 Code documentation
 ===================
 
-.. contents:: 
+.. contents::
 
 *******
 Modules
@@ -12,10 +12,10 @@ Modules
 .. automodule:: ramCOH.raman.baseclass
     :members:
 
-.. automodule:: ramCOH.raman.Glass
+.. automodule:: ramCOH.raman.glass
     :members:
 
-.. automodule:: ramCOH.raman.CO2
+.. automodule:: ramCOH.raman.co2
     :members:
 
 .. automodule:: ramCOH.raman.neon

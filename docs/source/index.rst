@@ -21,13 +21,17 @@ ramCOH quickstart
 
 About
 -----
-texttext
+RamCOH is a Python library for processing and peak fitting of Raman spectra, targeted at CO\ :sub:`2`\  fluids and (hydrous) silicate glasses
 
 Installation
 ------------
-texttext
+ramCOH can be installed with pip by running:
 
+.. code-block:: bash
 
+    pip install ramCOH
+
+in a terminal
 
 Indices and tables
 ------------------
