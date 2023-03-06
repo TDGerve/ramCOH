@@ -253,7 +253,7 @@ class RamanProcessing:
         y = kwargs.get("y", self._spectrumSelect)
         spectrum = self.signal.get(y)
 
-        if (self.birs_default is not None) & (baseline_regions is None):
+        if hasattr(self, "birs_default") & (baseline_regions is None):
             baseline_regions = self.birs_default
 
         self.birs = baseline_regions

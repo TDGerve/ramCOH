@@ -12,6 +12,7 @@ ramCOH quickstart
    :caption: Contents:
 
    about
+   changelog
    getting_started
    code_documentation
    tutorials
