@@ -44,6 +44,7 @@ intersphinx_mapping = {
     "numpy": ("https://numpy.org/doc/stable/", None),
 }
 intersphinx_disabled_reftypes = ["*"]
+autodoc_member_order = "groupwise"
 
 
 # -- Options for HTML output -------------------------------------------------
