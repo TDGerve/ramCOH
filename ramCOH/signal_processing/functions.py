@@ -33,7 +33,7 @@ def neonEmission(laser=532.18):
     return neon
 
 
-def trim_sort(x, y, cutoff=0):
+def trim_sort(x: npt.NDArray, y: npt.NDArray, cutoff=0):
     """
     Sort and trim x, y data
 
@@ -48,13 +48,27 @@ def trim_sort(x, y, cutoff=0):
     -------
     x, y : x and y sorted by x and trimmed to x > cutoff
     """
-    x = np.array(x)
+    # x = np.array(x)
+    x = remove_duplicate_x(x)
     y = np.array(y)
     sort = np.argsort(x)
     y_sort = y[sort]
     x_sort = x[sort]
 
     return x_sort[x > cutoff], y_sort[x > cutoff]
+
+
+def remove_duplicate_x(x: npt.NDArray):
+    """
+    Shift x-axis values by +1% if they are duplicates.
+    """
+
+    duplicates = np.concatenate([[False], np.diff(x) == 0])
+
+    if not np.any(duplicates):
+        return x
+
+    return np.where(duplicates, x * 1.01, x)
 
 
 def shift_spectrum(spectrum: npt.NDArray, shift: int) -> npt.NDArray:
