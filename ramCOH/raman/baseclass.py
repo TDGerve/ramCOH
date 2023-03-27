@@ -13,7 +13,6 @@ import numpy as np
 import numpy.typing as npt
 import scipy.interpolate as itp
 import scipy.optimize as opt
-
 from ramCOH.signal_processing import curve_fitting as cf
 from ramCOH.signal_processing import curves as c
 from ramCOH.signal_processing import deconvolution as d
@@ -488,7 +487,7 @@ class RamanProcessing:
         peak_height,
         residuals_threshold: float = 10,
         baseline0: bool = True,
-        min_amplitude: Union[int, float] = 1,
+        min_amplitude: Union[int, float] = 3,
         min_peak_width: Union[int, float] = 4,
         fit_window: int = 4,
         max_iterations: int = 5,
@@ -518,8 +517,8 @@ class RamanProcessing:
             fit iterations are stopped when the root-mean squared error has decreased less than ``residuals_threshold``\% compared to the previous iteration.
         baseline0   :   bool, default True
             fix the baselevel at 0
-        min_amplitude   : int or float, default 1
-            minimum absolute height of fitted peaks.
+        min_amplitude   : int or float, default 3
+            minium amplitude of fitted peaks as a factor of noise on y.
         min_peak_width  : int, default 8
             minimum full width of fitted peaks in x-axis steps
         fit_window  :   int, default 4
