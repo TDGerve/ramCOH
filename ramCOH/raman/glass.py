@@ -137,8 +137,8 @@ class Glass(RamanProcessing):
         Noise is calculated with self.calculate_noise and
         maxima within the silicate and water regions are used as signals.
 
-        silicate and water regions are set with :py:meth:`~ramCOH.raman.water.H2O._get_Si_H2O_regions` and
-        results are stored in :py:attr:`~ramCOH.raman.water.H2O.Si_SNR` and :py:attr:`~ramCOH.raman.water.H2O.H2O_SNR`.
+        silicate and water regions are set with :py:meth:`~ramCOH.raman.glass.Glass._get_Si_H2O_regions` and
+        results are stored in :py:attr:`~ramCOH.raman.glass.Glass.Si_SNR` and :py:attr:`~ramCOH.raman.glass.Glass.H2O_SNR`.
 
 
         """
@@ -236,8 +236,8 @@ class Glass(RamanProcessing):
         """
         Calculate areas underneath peaks in the silicate and water regions
 
-        Areas are calculated by trapezoidal integration of regions set by :py:meth:`~ramCOH.raman.water.H2O._get_Si_H2O_regions`
-        Results are stored in :py:attr:`~ramCOH.raman.water.H2O.SiH2Oareas`.
+        Areas are calculated by trapezoidal integration of regions set by :py:meth:`~ramCOH.raman.glass.Glass._get_Si_H2O_regions`
+        Results are stored in :py:attr:`~ramCOH.raman.glass.Glass.SiH2Oareas`.
 
         Returns
         -------
