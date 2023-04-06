@@ -5,6 +5,7 @@ import csaps as cs
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
+from sklearn.metrics import mean_squared_error
 
 import ramCOH.signal_processing.curves as c
 
@@ -279,8 +280,9 @@ def _root_interference(
     )
     # Subtract olivine
     spectrum_corrected = spectrum - interference_scaled
+    rmse = mean_squared_error(interpolated_interval, spectrum_corrected, squared=False)
 
-    return [sum(abs(interpolated_interval - spectrum_corrected)), 0]
+    return [rmse, 0]  # sum(abs(interpolated_interval - spectrum_corrected))
 
 
 def _shift_window(filter_array: npt.NDArray[np.bool_], shift: Union[float, int]):
