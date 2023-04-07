@@ -13,6 +13,7 @@ import numpy as np
 import numpy.typing as npt
 import scipy.interpolate as itp
 import scipy.optimize as opt
+
 from ramCOH.signal_processing import curve_fitting as cf
 from ramCOH.signal_processing import curves as c
 from ramCOH.signal_processing import deconvolution as d
@@ -270,7 +271,6 @@ class RamanProcessing:
         self.signal.add("baseline", self.baseline)
 
     def calculate_noise(self, baseline_regions: Optional[npt.NDArray] = None) -> None:
-
         """
         Calculate noise on a baseline corrected spectrum.
 
@@ -328,7 +328,7 @@ class RamanProcessing:
 
     def interpolate(
         self,
-        interpolate=List[Tuple[float, float]],
+        interpolate: List[Tuple[float, float]],
         smooth_factor=1,
         add_noise=True,
         output=False,
