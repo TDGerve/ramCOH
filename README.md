@@ -1,3 +1,4 @@
+[![Documentation Status](https://readthedocs.org/projects/ramcoh/badge/?version=latest)](https://ramcoh.readthedocs.io/en/latest/?badge=latest)
 # ramCOH
 
 Library for processing and peak fitting of Raman spectra, targeted at CO<sub>2</sub> fluids and (hydrous) silicate glasses
@@ -16,6 +17,6 @@ If you would like to install from a specific git branch or release instead run
 
     pip install git+https://github.com/TDGerve/ramCOH.git@tag
 
-where *tag* should be repleaced by the release tag or branch name (e.g. *v1.0* or *development*)
+where *tag* should be repleaced by the release tag or branch name (e.g. *v1.0.0* or *development*)
 
 

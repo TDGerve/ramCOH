@@ -42,6 +42,7 @@ intersphinx_mapping = {
     "csaps": ("https://csaps.readthedocs.io/en/latest/", None),
     "scipy": ("https://docs.scipy.org/doc/scipy/reference", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
+    "silich2o": ("https://silich2o.readthedocs.io/en/latest/", None),
 }
 intersphinx_disabled_reftypes = ["*"]
 autodoc_member_order = "groupwise"
