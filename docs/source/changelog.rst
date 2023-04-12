@@ -4,6 +4,10 @@
 Changelog
 =========
 
+v1.1.2
+------
+Bugfix for co2.py not being recognised due to capitalisation in filename.
+
 v1.1.1
 ------
 Minor bugfixes for compatibility issues with `SilicH2O <https://silich2o.readthedocs.io/en/latest/>`_ .
