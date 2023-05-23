@@ -128,7 +128,7 @@ def GaussLorentz(x, amplitude, center, width, baselevel, shape):
     )
 
 
-def sum_GaussLorentz(x, centers, amplitudes, widths, shapes, baselevels):
+def sum_GaussLorentz(x, centers, amplitudes, widths, shapes, baselevels=0):
     """
     add mixed Gauss-Lorentzian curves together
 
@@ -140,6 +140,9 @@ def sum_GaussLorentz(x, centers, amplitudes, widths, shapes, baselevels):
 
     if isinstance(baselevels, (int, float)):
         baselevels = [baselevels] * peakAmount
+
+    if isinstance(shapes, (int, float)):
+        shapes = [shapes] * peakAmount
 
     params = [
         {"center": i, "amplitude": j, "width": k, "baselevel": l, "shape": m}

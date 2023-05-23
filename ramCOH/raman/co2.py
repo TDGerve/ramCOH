@@ -76,7 +76,7 @@ class CO2(RamanProcessing):
             inplace=False,
             x_min=1200,
             x_max=1450,
-            **kwargs
+            **kwargs,
         )
 
         lower = [peak for peak in self.peaks if peak["center"] < 1330]
@@ -87,6 +87,7 @@ class CO2(RamanProcessing):
             amplitude_sort = np.argsort([peak["amplitude"] for peak in region])
             peaks_sorted = np.array(region)[amplitude_sort]
             self.diad.append(peaks_sorted[-1])
+            # TODO give a warning when a mixed vapour-liquid signal is suspected
 
         self.diad_split = abs(self.diad[0]["center"] - self.diad[1]["center"])
 
@@ -113,7 +114,7 @@ class CO2(RamanProcessing):
 
         results = []
 
-        for peak in self.diad.values():
+        for peak in self.diad:
             width = peak["width"]
 
             start = peak["center"] - window * width
