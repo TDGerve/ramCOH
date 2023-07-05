@@ -11,12 +11,10 @@ import ramCOH.signal_processing.curves as c
 
 
 def wavelengthToShift(wavelength, laser=532.18):
-
     return 1e7 / laser - 1e7 / wavelength
 
 
 def ShiftToWavelength(shift, laser=532.18):
-
     return 1 / (1 / laser - shift / 1e7)
 
 
@@ -113,7 +111,7 @@ def smooth(y, type="gaussian", kernel_width=9):
                 c.Gaussian(x, 1, 0, kernel_width / 3, 0)
                 for x in range(-(kernel_width - 1) // 2, (kernel_width + 1) // 2, 1)
             ),
-            np.float,
+            float,
         )
         kernel = kernel / sum(kernel)
 
@@ -121,7 +119,6 @@ def smooth(y, type="gaussian", kernel_width=9):
 
 
 def long_correction(x, intensities, T_C=25.0, laser=532.18, normalisation=True):
-
     """
     Long correction of Raman spectra
     From Long (1977) and Behrens (2006)
@@ -206,14 +203,12 @@ def _extractBIR_bool(x, birs):
 
 
 def _extractBIR(x, y, birs):
-
     selection = _extractBIR_bool(x, birs)
 
     return x[selection], y[selection]
 
 
 def _interpolate_section(x, y, interpolate, smooth_factor):
-
     smooth = smooth_factor * 1e-5
 
     interpolate_index = _extractBIR_bool(x, interpolate)
@@ -266,7 +261,6 @@ def _root_interference(
     interpolated_interval: npt.NDArray,
     interval: Tuple[float, float],
 ):
-
     scale, shift = scaling
     x_min, x_max = interval
     # Trim glass spectra to length
@@ -306,7 +300,6 @@ def add_interpolation(
     interpolation_indeces: npt.NDArray,
     interpolated_y: npt.NDArray,
 ):
-
     interpolated_spectrum = spectrum.copy()
     interpolated_spectrum[interpolation_indeces] = interpolated_y.copy()
 
