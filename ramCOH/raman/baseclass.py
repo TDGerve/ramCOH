@@ -5,6 +5,8 @@ Generic classes
 The baseclass module provides generic classes for processing Raman data and storing spectral data
 """
 
+import collections
+from itertools import compress
 from typing import Annotated, Dict, List, Literal, Optional, Tuple, Union
 from warnings import warn
 
@@ -88,7 +90,7 @@ class Signal:
         self, old_x: npt.NDArray, old_y: npt.NDArray
     ) -> npt.NDArray:
         """
-        Linear interpolation a spectrum to match its x-axis with :py:attr:`~ramCOH.raman.baseclass.Signal.x`
+        Linearly interpolate a spectrum to match its x-axis with :py:attr:`~ramCOH.raman.baseclass.Signal.x`
 
         """
         interpolate = itp.interp1d(old_x, old_y, bounds_error=False, fill_value=0.0)
@@ -151,11 +153,14 @@ class RamanProcessing:
         self.signal = Signal(x, y)
 
         self.laser = laser
-        self._processing = {
-            "raw": True,
-            "interference_corrected": False,
-            "interpolated": False,
-        }
+        self._processing = collections.OrderedDict(
+            {
+                "raw": True,
+                "interference_corrected": False,
+                "interpolated": False,
+            }
+        )
+        # TODO create a separate class for keeping track of data processing.
 
         self.noise: Optional[float] = None
         self.birs: Optional[arrayNx2[float]] = None
@@ -163,17 +168,31 @@ class RamanProcessing:
 
     @property
     def processing(self) -> dict:
+        # TODO move this method to a data processing info class
         return self._processing
 
     @property
     def _spectrumSelect(self) -> str:
-        spectra = ("interference_corrected", "interpolated")
-        selection = "raw"
-        for key in spectra:
-            selection = key if self._processing[key] else selection
-        return selection
+        # TODO move this method to a data processing info class
+        """
+        Get the name of the spectrum that should be used for further processing according to the hiearchy:
+
+        1   raw
+        2   interference_corrected
+        3   interpolated
+        """
+        # spectra = ("interference_corrected", "interpolated")
+        # selection = "raw"
+        # for key in spectra:
+        #     selection = key if self._processing[key] else selection
+        # return selection
+        available_spectra = list(
+            compress(self.processing.keys(), self.processing.values())
+        )
+        return available_spectra[-1]
 
     def _set_processing(self, types: List[str], values: List[bool]) -> None:
+        # TODO move this method to a data processing class
         for t, val in zip(types, values):
             try:
                 _ = self._processing.get(t)
